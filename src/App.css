@@ -1,0 +1,16 @@
+/* Benue Market - Global Custom Utility Styles */
+
+/* Subtle transition utility */
+.transition-standard {
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Subtle card lift on hover */
+.hover-card-lift {
+  transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+}
+
+.hover-card-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px -4px rgba(15, 81, 50, 0.08);
+}

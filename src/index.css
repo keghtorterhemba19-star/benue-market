@@ -1,0 +1,172 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --color-brand: #0F5132;
+    --color-brand-hover: #0A3622;
+    --color-brand-subtle: #E8F5E9;
+    --color-brand-border: #C8E6C9;
+    
+    --color-accent: #B45309;
+    --color-accent-hover: #92400E;
+    --color-accent-subtle: #FEF3C7;
+    
+    --color-bg-base: #FBF9F6;
+    --color-bg-surface: #FFFFFF;
+    --color-bg-subtle: #F4EFEB;
+    
+    --color-border-subtle: #E8E2D9;
+    --color-border-default: #D6CDC0;
+    --color-border-strong: #9CA3AF;
+    
+    --color-text-primary: #111827;
+    --color-text-secondary: #374151;
+    --color-text-muted: #6B7280;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: var(--color-bg-base);
+    color: var(--color-text-primary);
+    line-height: 1.5;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+}
+
+/* Custom scrollbar utility */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Glassmorphism utility */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--color-border-subtle);
+}
+
+/* Infinite Marquee Ticker */
+@keyframes continuousMarquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+.animate-marquee-infinite {
+  display: flex;
+  width: max-content;
+  animation: continuousMarquee 30s linear infinite;
+}
+.animate-marquee-infinite:hover {
+  animation-play-state: paused;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PREMIUM MOBILE NAVIGATION SYSTEM
+   ═══════════════════════════════════════════════════════════ */
+
+/* Backdrop overlay */
+@keyframes fadeOverlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.mobile-overlay {
+  animation: fadeOverlayIn 0.3s ease-out forwards;
+}
+
+/* Full-screen drawer slide-up */
+@keyframes slideDrawerUp {
+  from { transform: translateY(100%); opacity: 0.5; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.mobile-drawer {
+  animation: slideDrawerUp 0.4s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+/* Drawer handle */
+.drawer-handle {
+  width: 40px;
+  height: 4.5px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.12);
+  margin: 0 auto;
+}
+
+/* Staggered nav item reveal */
+@keyframes navItemReveal {
+  from { opacity: 0; transform: translateX(-16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.nav-stagger { opacity: 0; animation: navItemReveal 0.4s cubic-bezier(0.32, 0.72, 0, 1) forwards; }
+.nav-stagger:nth-child(1) { animation-delay: 0.05s; }
+.nav-stagger:nth-child(2) { animation-delay: 0.09s; }
+.nav-stagger:nth-child(3) { animation-delay: 0.13s; }
+.nav-stagger:nth-child(4) { animation-delay: 0.17s; }
+.nav-stagger:nth-child(5) { animation-delay: 0.21s; }
+.nav-stagger:nth-child(6) { animation-delay: 0.25s; }
+.nav-stagger:nth-child(7) { animation-delay: 0.29s; }
+
+/* Active nav dot pulse */
+@keyframes pulseDot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.8); opacity: 0.4; }
+}
+.nav-active-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-brand);
+  animation: pulseDot 2s ease-in-out infinite;
+}
+
+/* Bottom tab bar */
+@keyframes bottomTabIn {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.bottom-tab-bar {
+  animation: bottomTabIn 0.3s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+/* Tab press bounce */
+@keyframes tabPress {
+  0% { transform: scale(1); }
+  40% { transform: scale(0.88); }
+  70% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+.tab-bounce {
+  animation: tabPress 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Profile card entrance */
+@keyframes profileReveal {
+  from { opacity: 0; transform: translateY(20px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.profile-card-animate {
+  animation: profileReveal 0.45s cubic-bezier(0.32, 0.72, 0, 1) 0.2s forwards;
+  opacity: 0;
+}
+
+/* Lock body scroll when drawer is open */
+body.mobile-menu-open {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+}
