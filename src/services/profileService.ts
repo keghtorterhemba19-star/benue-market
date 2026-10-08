@@ -95,13 +95,59 @@ export const updateProfileInSupabase = async (
       .single();
 
     if (error || !data) {
-      console.warn('Profile update error:', error);
+      console.warn('[ProfileService] Profile update warning/error:', error?.message || 'No data returned');
       return null;
     }
 
     return mapSupabaseRowToUser(data as SupabaseProfileRow);
   } catch (err) {
-    console.warn('Error updating profile in Supabase:', err);
+    console.error('[ProfileService] Exception during profile update:', err);
     return null;
   }
 };
+
+/**
+ * Upserts a user profile into public.profiles to ensure profile record exists
+ * after Supabase Auth signup.
+ */
+export const upsertProfileInSupabase = async (
+  user: Partial<User> & { id: string; email: string }
+): Promise<User | null> => {
+  if (!isSupabaseConfigured()) return null;
+
+  try {
+    const payload = {
+      id: user.id,
+      name: user.name || user.email.split('@')[0],
+      email: user.email.toLowerCase(),
+      phone: user.phone || '08000000000',
+      whatsapp: user.whatsapp || user.phone || '08000000000',
+      role: user.role || 'buyer',
+      user_type: user.userType || (user.role === 'seller' ? 'farmer' : 'individual'),
+      profile_image: user.profileImage || null,
+      cover_image: user.coverImage || null,
+      bio: user.bio || null,
+      location: user.location || null,
+      lga: user.lga || 'Makurdi',
+      is_verified: user.isVerified ?? (user.role === 'seller' || user.role === 'super_admin'),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .upsert(payload, { onConflict: 'id' })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[ProfileService] Profile upsert error:', error.message, error.details);
+      return null;
+    }
+
+    return mapSupabaseRowToUser(data as SupabaseProfileRow);
+  } catch (err) {
+    console.error('[ProfileService] Exception during profile upsert:', err);
+    return null;
+  }
+};
+

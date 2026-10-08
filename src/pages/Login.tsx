@@ -376,7 +376,7 @@ export const Login: React.FC = () => {
 
         <div className="text-center text-xs text-[#4B5563] pt-3 border-t border-[#E8E2D9] flex items-center justify-between">
           <span>Don't have an account?{' '}
-            <Link to="/register" className="font-bold text-[#0F5132] hover:underline">
+            <Link to={`/register?role=${role === 'seller' ? 'farmer' : 'buyer'}`} className="font-bold text-[#0F5132] hover:underline">
               Register Here
             </Link>
           </span>

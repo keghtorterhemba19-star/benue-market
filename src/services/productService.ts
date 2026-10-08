@@ -243,46 +243,49 @@ const ALLOWED_IMAGE_TYPES = new Set([
 const ALLOWED_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif']);
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
 
-export const uploadProduceImageToSupabase = async (
+export const uploadMediaToSupabaseBucket = async (
   file: File,
-  folder = 'produce'
-): Promise<string | null> => {
-  if (!isSupabaseConfigured()) return null;
-
-  // AUTOMATIC COMPRESSION: Compress file into minimum capacity before database upload
-  const compressedFile = await compressFileToMinimumCapacity(file, {
-    maxWidth: 1024,
-    maxHeight: 1024,
-    quality: 0.72,
-  });
-
-  // SECURITY: Validate MIME type
-  if (!ALLOWED_IMAGE_TYPES.has(compressedFile.type.toLowerCase())) {
-    console.error(`Upload rejected: Invalid file type "${compressedFile.type}". Only image files (JPEG, PNG, WebP, GIF) are allowed.`);
-    throw new Error('Invalid file type. Please upload an image file (JPEG, PNG, WebP, or GIF).');
-  }
-
-  // SECURITY: Enforce file size limit on compressed file
-  if (compressedFile.size > MAX_FILE_SIZE_BYTES) {
-    console.error(`Upload rejected: Compressed file size ${(compressedFile.size / 1024 / 1024).toFixed(1)}MB exceeds 5MB limit.`);
-    throw new Error('File is too large. Maximum file size is 5MB.');
-  }
-
-  // SECURITY: Sanitize file extension from MIME type, NOT from user-controlled filename
-  const mimeToExt: Record<string, string> = {
-    'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png',
-    'image/webp': 'webp', 'image/gif': 'gif', 'image/avif': 'avif',
-  };
-  const fileExt = mimeToExt[compressedFile.type.toLowerCase()] || 'jpg';
-
-  // Double-check extension from filename as secondary validation
-  const nameExt = (compressedFile.name.split('.').pop() || '').toLowerCase();
-  if (nameExt && !ALLOWED_EXTENSIONS.has(nameExt)) {
-    console.error(`Upload rejected: Suspicious file extension ".${nameExt}" does not match MIME type "${compressedFile.type}".`);
-    throw new Error('File extension does not match its content type. Please upload a valid image.');
+  folder: 'produce' | 'avatars' | 'covers' | 'gallery' = 'produce'
+): Promise<{ url: string | null; error?: string }> => {
+  if (!isSupabaseConfigured()) {
+    return { url: null, error: 'Supabase is not configured in environment variables.' };
   }
 
   try {
+    // AUTOMATIC COMPRESSION: Compress file before uploading
+    const compressedFile = await compressFileToMinimumCapacity(file, {
+      maxWidth: 1200,
+      maxHeight: 1200,
+      quality: 0.75,
+    });
+
+    // SECURITY: Validate MIME type
+    if (!ALLOWED_IMAGE_TYPES.has(compressedFile.type.toLowerCase())) {
+      const msg = `Invalid file type "${compressedFile.type}". Only JPEG, PNG, WebP, GIF, and AVIF images are allowed.`;
+      console.error(`[StorageUploadError] Bucket: benue-market-media, Folder: ${folder} - ${msg}`);
+      return { url: null, error: msg };
+    }
+
+    // SECURITY: Validate extension
+    const nameExt = (compressedFile.name.split('.').pop() || '').toLowerCase();
+    if (nameExt && !ALLOWED_EXTENSIONS.has(nameExt)) {
+      const msg = `Suspicious file extension ".${nameExt}". Please upload a valid image file.`;
+      console.error(`[StorageUploadError] Bucket: benue-market-media, Folder: ${folder} - ${msg}`);
+      return { url: null, error: msg };
+    }
+
+    // SECURITY: Enforce file size limit
+    if (compressedFile.size > MAX_FILE_SIZE_BYTES) {
+      const msg = `File size ${(compressedFile.size / 1024 / 1024).toFixed(1)}MB exceeds 5MB limit.`;
+      console.error(`[StorageUploadError] Bucket: benue-market-media, Folder: ${folder} - ${msg}`);
+      return { url: null, error: msg };
+    }
+
+    const mimeToExt: Record<string, string> = {
+      'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png',
+      'image/webp': 'webp', 'image/gif': 'gif', 'image/avif': 'avif',
+    };
+    const fileExt = mimeToExt[compressedFile.type.toLowerCase()] || nameExt || 'jpg';
     const fileName = `${folder}/${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
 
     const { error: uploadError } = await supabase.storage
@@ -290,18 +293,31 @@ export const uploadProduceImageToSupabase = async (
       .upload(fileName, compressedFile, {
         cacheControl: '3600',
         upsert: false,
-        contentType: compressedFile.type, // Enforce MIME type on storage
+        contentType: compressedFile.type,
       });
 
     if (uploadError) {
-      console.warn('Storage upload error:', uploadError.message);
-      return null;
+      console.error(`[StorageUploadError] Bucket: benue-market-media, Path: ${fileName} - ${uploadError.message}`);
+      return { url: null, error: uploadError.message };
     }
 
     const { data } = supabase.storage.from('benue-market-media').getPublicUrl(fileName);
-    return data.publicUrl;
-  } catch (err) {
-    console.warn('Exception during image upload:', err);
-    return null;
+    return { url: data.publicUrl };
+  } catch (err: any) {
+    const errorMsg = err?.message || 'Unexpected exception during file upload';
+    console.error(`[StorageUploadException] Bucket: benue-market-media, Folder: ${folder} - ${errorMsg}`);
+    return { url: null, error: errorMsg };
   }
 };
+
+export const uploadProduceImageToSupabase = async (
+  file: File,
+  folder = 'produce'
+): Promise<string | null> => {
+  const result = await uploadMediaToSupabaseBucket(file, folder as any);
+  if (result.error && !result.url) {
+    console.warn('[ProduceUploadWarning]', result.error);
+  }
+  return result.url;
+};
+

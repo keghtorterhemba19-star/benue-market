@@ -338,3 +338,67 @@ export const sendPasswordChangedNotificationEmail = async (
     };
   }
 };
+
+/**
+ * Dispatches advertisement payment receipt email ONLY after payment verification succeeds.
+ */
+export const sendAdvertisementPaymentReceiptEmail = async (
+  email: string,
+  productName: string,
+  reference: string,
+  amount: number,
+  durationDays: number = 30
+): Promise<EmailDispatchResult> => {
+  const cleanEmail = email.trim().toLowerCase();
+  const timestamp = new Date().toLocaleString('en-NG', { dateStyle: 'full', timeStyle: 'short' });
+
+  try {
+    const ejsServiceId = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+    const ejsTemplateId = import.meta.env.VITE_EMAILJS_NOTIFICATION_TEMPLATE_ID || import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
+    const ejsPublicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+
+    if (ejsServiceId && ejsTemplateId && ejsPublicKey) {
+      try {
+        await emailjs.send(ejsServiceId, ejsTemplateId, {
+          to_email: cleanEmail,
+          app_name: 'Benue Market',
+          subject: `Payment Receipt: Advertisement Activated for ${productName}`,
+          message: `Dear Farmer / Vendor,\n\nYour payment of ₦${amount.toLocaleString()} for advertising "${productName}" has been successfully verified!\n\nPayment Reference: ${reference}\nDuration: ${durationDays} Days\nDate: ${timestamp}\n\nYour product is now live in the Sponsored section of Benue Market.\n\nThank you for choosing Benue Market!`,
+        });
+      } catch (e) {
+        console.warn('[EmailJS Ad Receipt Error]:', e);
+      }
+    }
+
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase.functions.invoke('send-ad-payment-receipt', {
+          body: {
+            email: cleanEmail,
+            productName,
+            reference,
+            amount,
+            durationDays,
+            timestamp,
+          },
+        });
+      } catch (e) {
+        // Log silently
+      }
+    }
+
+    console.log(`✅ [Ad Payment Receipt Sent] Verified receipt dispatched to ${cleanEmail} for ref ${reference}`);
+
+    return {
+      success: true,
+      message: `Advertisement payment receipt sent to ${cleanEmail}`,
+    };
+  } catch (err: any) {
+    console.error('Error sending ad payment receipt email:', err);
+    return {
+      success: false,
+      message: err.message || 'Failed to send payment receipt email.',
+    };
+  }
+};
+

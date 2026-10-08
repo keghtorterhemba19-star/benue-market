@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import type { User, UserRole, BenueLGA, AdminActivityLog, AccountStatus, SellerAvailability, SellerReview, Report, ReportReason, ReopeningRequest } from '../types';
 import { MOCK_USERS, MOCK_REVIEWS } from '../data/mockData';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
-import { fetchProfileFromSupabase, updateProfileInSupabase } from '../services/profileService';
+import { fetchProfileFromSupabase, updateProfileInSupabase, upsertProfileInSupabase } from '../services/profileService';
 import { sendPasswordResetEmail, sendPasswordChangedNotificationEmail } from '../services/emailService';
 import { validatePersonalEmail } from '../utils/emailValidator';
 import { generateSecureOtp, hashOtp } from '../utils/otpSecurity';
@@ -430,10 +430,88 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: true, user: adminUser };
     }
 
-    // 2. Lookup existing user in registry
+    // 2. Attempt Supabase Auth Sign-In if active
+    if (isSupabaseActive) {
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password,
+        });
+
+        if (!error && data.user) {
+          let profile = await fetchProfileFromSupabase(data.user.id);
+          if (!profile) {
+            profile = await upsertProfileInSupabase({
+              id: data.user.id,
+              email: cleanEmail,
+              name: data.user.user_metadata?.name || cleanEmail.split('@')[0],
+              phone: data.user.user_metadata?.phone || '08000000000',
+              role: (data.user.user_metadata?.role as UserRole) || requestedRole || 'buyer',
+              lga: (data.user.user_metadata?.lga as BenueLGA) || 'Makurdi',
+              status: 'active',
+            });
+          }
+
+          if (profile) {
+            if (profile.status === 'suspended') {
+              return { success: false, status: 'suspended', user: profile, error: 'Your account has been suspended by the Super Administrator.' };
+            }
+            // Clear failed attempts on successful sign-in
+            setUsers((prev) => [profile!, ...prev.filter((u) => u.id !== profile!.id)]);
+            setCurrentUser(profile);
+            return { success: true, user: profile };
+          }
+        }
+
+        if (error) {
+          console.warn('[AuthContext] Supabase signIn error:', error.message);
+
+          const errMsg = error.message.toLowerCase();
+
+          if (errMsg.includes('email not confirmed')) {
+            return {
+              success: false,
+              status: 'wrong_password',
+              error: 'Email not confirmed. Please disable Email Confirmation in Supabase Dashboard -> Auth -> Providers -> Email.',
+            };
+          }
+
+          // Check if profile exists in Supabase DB or local array before claiming account not found
+          const localUser = users.find((u) => u.email.toLowerCase() === cleanEmail);
+          let dbUser = null;
+          try {
+            const { data: profileRow } = await supabase.from('profiles').select('*').eq('email', cleanEmail).maybeSingle();
+            if (profileRow) dbUser = profileRow;
+          } catch {
+            // Ignore search error
+          }
+
+          const registeredUserExists = Boolean(localUser || dbUser);
+
+          if (registeredUserExists) {
+            // Account EXISTS, so error must be wrong password
+            return {
+              success: false,
+              status: 'wrong_password',
+              error: 'Incorrect email address or password. Please try again.',
+            };
+          }
+
+          // Genuine Account Not Found: User is not in Supabase Auth, DB profiles, or local state
+          return {
+            success: false,
+            status: 'not_found',
+            error: `No registered account found with email address ${cleanEmail}. Redirecting to sign up...`,
+          };
+        }
+      } catch (err: any) {
+        console.warn('[AuthContext] Exception during Supabase sign in:', err);
+      }
+    }
+
+    // 3. Fallback for Offline / Local User Registry
     const existing = users.find((u) => u.email.toLowerCase() === cleanEmail);
 
-    // Requirement 1: If user does NOT exist, signal not_found so caller redirects to registration
     if (!existing) {
       return {
         success: false,
@@ -442,7 +520,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     }
 
-    // Requirement 4: If account is suspended/closed
     if (existing.status === 'suspended') {
       return {
         success: false,
@@ -452,7 +529,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     }
 
-    // Requirement 3: Check 5-minute lockout timer
     if (existing.lockoutUntil && Date.now() < existing.lockoutUntil) {
       return {
         success: false,
@@ -463,35 +539,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     }
 
-    // If lockout timer expired, clear lockout
     if (existing.lockoutUntil && Date.now() >= existing.lockoutUntil) {
       existing.lockoutUntil = undefined;
       existing.failedLoginAttempts = 0;
-    }
-
-    // 3. Supabase Cloud Sign-in Attempt if configured
-    if (isSupabaseActive) {
-      try {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: cleanEmail,
-          password,
-        });
-
-        if (!error && data.user) {
-          const profile = await fetchProfileFromSupabase(data.user.id);
-          if (profile) {
-            if (profile.status === 'suspended') {
-              return { success: false, status: 'suspended', user: profile, error: 'Your account has been suspended by the Super Administrator.' };
-            }
-            // Clear failed attempts on successful sign-in
-            setUsers((prev) => prev.map((u) => u.id === profile.id ? { ...u, failedLoginAttempts: 0, lockoutUntil: undefined } : u));
-            setCurrentUser(profile);
-            return { success: true };
-          }
-        }
-      } catch (err) {
-        console.warn('Supabase sign in failed, fallback to local/demo mode:', err);
-      }
     }
 
     // 4. Verify password — Require actual password.
@@ -630,16 +680,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           },
         });
 
-        if (!error && data.user) {
-          const profile = await fetchProfileFromSupabase(data.user.id);
-          if (profile) {
-            setCurrentUser(profile);
-            setUsers((prev) => [profile, ...prev.filter((u) => u.id !== profile.id)]);
-            return { success: true };
-          }
+        if (error) {
+          console.error('[AuthContext] Supabase Auth signUp error:', error.message);
+          return { success: false, error: error.message };
         }
-      } catch (err) {
-        console.warn('Supabase sign up failed, registering locally:', err);
+
+        if (data.user) {
+          let profile = await fetchProfileFromSupabase(data.user.id);
+          if (!profile) {
+            profile = await upsertProfileInSupabase({
+              id: data.user.id,
+              name,
+              email: cleanEmail,
+              phone,
+              whatsapp: phone,
+              role,
+              lga,
+              userType: role === 'seller' ? 'farmer' : 'buyer_merchant',
+              isVerified: role === 'seller',
+              status: 'active',
+            });
+          }
+
+          const registeredUser: User = profile || {
+            id: data.user.id,
+            name,
+            email: cleanEmail,
+            phone,
+            whatsapp: phone,
+            role,
+            userType: role === 'seller' ? 'farmer' : 'buyer_merchant',
+            lga,
+            isVerified: role === 'seller',
+            status: 'active',
+            createdAt: data.user.created_at || new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+
+          setCurrentUser(registeredUser);
+          setUsers((prev) => [registeredUser, ...prev.filter((u) => u.id !== registeredUser.id)]);
+          return { success: true };
+        }
+      } catch (err: any) {
+        console.error('[AuthContext] Exception during registration:', err);
+        return { success: false, error: err?.message || 'An error occurred during account creation.' };
       }
     }
 

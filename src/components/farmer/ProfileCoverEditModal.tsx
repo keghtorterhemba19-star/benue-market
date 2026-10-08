@@ -4,6 +4,7 @@ import type { User, BenueLGA, SellerAvailability } from '../../types';
 import { BENUE_LGAS } from '../../constants/benue';
 import { useAuth } from '../../context/AuthContext';
 import { compressImageFile } from '../../utils/imageCompressor';
+import { uploadMediaToSupabaseBucket } from '../../services/productService';
 
 interface ProfileCoverEditModalProps {
   isOpen: boolean;
@@ -118,19 +119,31 @@ export const ProfileCoverEditModal: React.FC<ProfileCoverEditModalProps> = ({
     const file = e.target.files?.[0];
     if (file) {
       try {
-        const compressedDataUrl = await compressImageFile(
-          file,
-          type === 'avatar' ? 400 : 1200,
-          type === 'avatar' ? 400 : 800,
-          0.8
-        );
-        if (type === 'cover') {
-          setSelectedCover(compressedDataUrl);
+        const folder = type === 'avatar' ? 'avatars' : 'covers';
+        const result = await uploadMediaToSupabaseBucket(file, folder);
+
+        if (result.url) {
+          if (type === 'cover') {
+            setSelectedCover(result.url);
+          } else {
+            setSelectedAvatar(result.url);
+          }
         } else {
-          setSelectedAvatar(compressedDataUrl);
+          // Fallback compression if unconfigured/offline
+          const compressedDataUrl = await compressImageFile(
+            file,
+            type === 'avatar' ? 400 : 1200,
+            type === 'avatar' ? 400 : 800,
+            0.8
+          );
+          if (type === 'cover') {
+            setSelectedCover(compressedDataUrl);
+          } else {
+            setSelectedAvatar(compressedDataUrl);
+          }
         }
       } catch (err) {
-        console.error('Failed to compress uploaded image:', err);
+        console.error('Failed to upload image to Supabase storage:', err);
       }
     }
   };
