@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { PlusCircle, ShieldCheck, LogOut, Camera, Upload, Trash2, CheckCircle2, Edit3, Star, Megaphone } from 'lucide-react';
+import { PlusCircle, ShieldCheck, LogOut, Camera, Upload, Trash2, CheckCircle2, Edit3, Star, Megaphone, Clock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useProducts } from '../context/ProductContext';
 import { formatNaira } from '../utils/formatters';
@@ -9,6 +9,8 @@ import { EditProductModal } from '../components/marketplace/EditProductModal';
 import { ProfileCoverEditModal } from '../components/farmer/ProfileCoverEditModal';
 import { AdvertiseProductModal } from '../components/marketplace/AdvertiseProductModal';
 import type { Product } from '../types';
+import type { Advertisement } from '../types/advertisement';
+import { fetchVendorAdvertisements } from '../services/advertisingService';
 
 export const FarmerDashboard: React.FC = () => {
   const { currentUser, logout, updateProfileImage, updateCoverImage, updateUserProfile, toggleAvailabilityStatus } = useAuth();
@@ -19,8 +21,22 @@ export const FarmerDashboard: React.FC = () => {
   const [productToAdvertise, setProductToAdvertise] = useState<Product | null>(null);
   const [isCoverModalOpen, setIsCoverModalOpen] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [vendorAds, setVendorAds] = useState<Advertisement[]>([]);
 
   const farmerListings = getProductsBySeller(currentUser?.id || 'farmer-1');
+
+  useEffect(() => {
+    loadVendorAds();
+  }, [currentUser?.id]);
+
+  const loadVendorAds = async () => {
+    if (currentUser?.id) {
+      const ads = await fetchVendorAdvertisements(currentUser.id);
+      setVendorAds(ads);
+    }
+  };
+
+  const activeVendorAds = vendorAds.filter((a) => a.advertisementStatus === 'active');
 
   const handleAvatarClick = () => {
     setIsCoverModalOpen(true);
@@ -70,6 +86,7 @@ export const FarmerDashboard: React.FC = () => {
         vendorEmail={currentUser?.email || ''}
         vendorId={currentUser?.id || ''}
         onSuccess={() => {
+          loadVendorAds();
           setToastMessage('🎉 Product advertisement activated! It will now appear in the Sponsored section.');
           setTimeout(() => setToastMessage(null), 5000);
         }}
@@ -217,11 +234,20 @@ export const FarmerDashboard: React.FC = () => {
         </div>
 
         {/* Overview Stat Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <div className="bg-white p-5 rounded-2xl border border-[#E8E2D9] shadow-sm space-y-1">
             <span className="text-xs font-semibold text-[#4B5563]">Active Public Listings</span>
             <div className="font-extrabold text-3xl text-[#0F5132]">{farmerListings.length}</div>
             <p className="text-[11px] text-[#B45309] font-medium">Visible to buyers across Nigeria</p>
+          </div>
+
+          <div className="bg-white p-5 rounded-2xl border border-amber-200 shadow-sm space-y-1 bg-gradient-to-br from-amber-50/30 to-white">
+            <span className="text-xs font-semibold text-[#4B5563]">Active Advertisements</span>
+            <div className="font-extrabold text-3xl text-[#B45309] flex items-center gap-2">
+              <Megaphone className="w-6 h-6 text-[#F59E0B]" />
+              <span>{activeVendorAds.length}</span>
+            </div>
+            <p className="text-[11px] text-[#B45309] font-medium">Promoted in Sponsored Harvests</p>
           </div>
 
           <div className="bg-white p-5 rounded-2xl border border-[#E8E2D9] shadow-sm space-y-1">
@@ -294,62 +320,97 @@ export const FarmerDashboard: React.FC = () => {
                     <th className="p-3">Category</th>
                     <th className="p-3">Price / Unit</th>
                     <th className="p-3">Available</th>
+                    <th className="p-3">Ad Status</th>
                     <th className="p-3">Location & LGA</th>
                     <th className="p-3 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#E8E2D9]">
-                  {farmerListings.map((item) => (
-                    <tr key={item.id} className="hover:bg-[#FBF9F6]">
-                      <td className="p-3 font-bold text-[#111827] flex items-center gap-2">
-                        <img src={item.images[0]} alt="" className="w-8 h-8 rounded-lg object-cover border border-[#E8E2D9]" />
-                        <Link to={`/product/${item.id}`} className="hover:text-[#0F5132]">
-                          {item.name}
-                        </Link>
-                      </td>
-                      <td className="p-3 uppercase font-semibold text-[#B45309]">{item.category}</td>
-                      <td className="p-3 font-bold text-[#0F5132]">{formatNaira(item.price)} / {item.unit}</td>
-                      <td className="p-3 text-[#4B5563]">{item.quantity} units</td>
-                      <td className="p-3 text-[#4B5563]">{item.location} ({item.lga})</td>
-                      <td className="p-3 text-right">
-                        <div className="inline-flex items-center justify-end gap-2">
-                          <Link
-                            to={`/product/${item.id}`}
-                            className="text-[#0F5132] font-bold hover:underline px-2 py-1"
-                          >
-                            View
+                  {farmerListings.map((item) => {
+                    const ad = vendorAds.find((a) => a.productId === item.id);
+                    const remainingDays = ad?.expiresAt
+                      ? Math.max(0, Math.ceil((new Date(ad.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+                      : 0;
+                    const isAdActive = ad?.advertisementStatus === 'active';
+
+                    return (
+                      <tr key={item.id} className="hover:bg-[#FBF9F6]">
+                        <td className="p-3 font-bold text-[#111827] flex items-center gap-2">
+                          <img src={item.images[0]} alt="" className="w-8 h-8 rounded-lg object-cover border border-[#E8E2D9]" />
+                          <Link to={`/product/${item.id}`} className="hover:text-[#0F5132]">
+                            {item.name}
                           </Link>
-                          <button
-                            type="button"
-                            onClick={() => setProductToAdvertise(item)}
-                            className="inline-flex items-center gap-1 text-[#B45309] hover:text-[#92400E] font-bold bg-amber-50 hover:bg-amber-100 px-2.5 py-1 rounded-lg border border-amber-200 transition-colors"
-                            title="Advertise this product"
-                          >
-                            <Megaphone className="w-3.5 h-3.5" />
-                            <span>Advertise</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setProductToEdit(item)}
-                            className="inline-flex items-center gap-1 text-[#0F5132] hover:text-[#0B3D26] font-bold bg-[#E8F5E9] hover:bg-[#C8E6C9] px-2.5 py-1 rounded-lg border border-[#C8E6C9] transition-colors"
-                            title="Edit listing"
-                          >
-                            <Edit3 className="w-3.5 h-3.5" />
-                            <span>Edit</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setProductToDelete(item)}
-                            className="inline-flex items-center gap-1 text-red-600 hover:text-red-800 font-bold bg-red-50 hover:bg-red-100 px-2.5 py-1 rounded-lg border border-red-200 transition-colors"
-                            title="Delete listing"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            <span>Delete</span>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="p-3 uppercase font-semibold text-[#B45309]">{item.category}</td>
+                        <td className="p-3 font-bold text-[#0F5132]">{formatNaira(item.price)} / {item.unit}</td>
+                        <td className="p-3 text-[#4B5563]">{item.quantity} units</td>
+                        
+                        {/* Ad Status & Expiration Days Badge */}
+                        <td className="p-3">
+                          {isAdActive ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200">
+                              <Megaphone className="w-3 h-3 text-emerald-600" />
+                              <span>Active ({remainingDays}d left)</span>
+                            </span>
+                          ) : ad && ad.advertisementStatus === 'pending' ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2.5 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-200">
+                              <Clock className="w-3 h-3 text-amber-600" />
+                              <span>Pending Payment</span>
+                            </span>
+                          ) : ad && ad.advertisementStatus === 'expired' ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2.5 py-1 rounded-lg bg-gray-100 text-gray-600 border border-gray-200">
+                              <span>Expired Ad</span>
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-gray-400 font-medium">Standard Listing</span>
+                          )}
+                        </td>
+
+                        <td className="p-3 text-[#4B5563]">{item.location} ({item.lga})</td>
+                        <td className="p-3 text-right">
+                          <div className="inline-flex items-center justify-end gap-2">
+                            <Link
+                              to={`/product/${item.id}`}
+                              className="text-[#0F5132] font-bold hover:underline px-2 py-1"
+                            >
+                              View
+                            </Link>
+                            <button
+                              type="button"
+                              onClick={() => setProductToAdvertise(item)}
+                              className={`inline-flex items-center gap-1 font-bold px-2.5 py-1 rounded-lg border transition-colors ${
+                                isAdActive
+                                  ? 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200'
+                                  : 'text-[#B45309] hover:text-[#92400E] bg-amber-50 hover:bg-amber-100 border-amber-200'
+                              }`}
+                              title={isAdActive ? 'Ad is active - click to manage or extend' : 'Advertise this product'}
+                            >
+                              <Megaphone className="w-3.5 h-3.5" />
+                              <span>{isAdActive ? 'Promoted' : 'Advertise'}</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setProductToEdit(item)}
+                              className="inline-flex items-center gap-1 text-[#0F5132] hover:text-[#0B3D26] font-bold bg-[#E8F5E9] hover:bg-[#C8E6C9] px-2.5 py-1 rounded-lg border border-[#C8E6C9] transition-colors"
+                              title="Edit listing"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                              <span>Edit</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setProductToDelete(item)}
+                              className="inline-flex items-center gap-1 text-red-600 hover:text-red-800 font-bold bg-red-50 hover:bg-red-100 px-2.5 py-1 rounded-lg border border-red-200 transition-colors"
+                              title="Delete listing"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Delete</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

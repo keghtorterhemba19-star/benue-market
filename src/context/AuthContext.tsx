@@ -129,6 +129,11 @@ interface AuthContextType {
   toggleVerifyFarmer: (userId: string) => Promise<boolean>;
   hasPermission: (action: 'add_admin' | 'delete_user' | 'suspend_user' | 'delete_product' | 'control_settings' | 'verify_farmer' | 'view_analytics') => boolean;
 
+  // Audit Trail Management
+  deleteActivityLog: (logId: string) => Promise<boolean>;
+  deleteActivityLogs: (logIds: string[]) => Promise<number>;
+  clearActivityLogs: (filter?: { olderThanDays?: number; all?: boolean }) => Promise<number>;
+
   // Status & Role flags
   isAuthenticated: boolean;
   isSeller: boolean;
@@ -265,6 +270,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (e.key === 'benue_market_reports' && e.newValue) {
         try {
           setReports(JSON.parse(e.newValue));
+        } catch {}
+      }
+      if (e.key === 'benue_market_admin_logs' && e.newValue) {
+        try {
+          setActivityLogs(JSON.parse(e.newValue));
         } catch {}
       }
     };
@@ -1422,6 +1432,65 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return true;
   };
 
+  const deleteActivityLog = async (logId: string): Promise<boolean> => {
+    if (!isAdmin && !isSuperAdmin) {
+      throw new Error('Access Denied: Administrative authority required to modify audit trail.');
+    }
+    const target = activityLogs.find((l) => l.id === logId);
+    if (!target) return false;
+
+    setActivityLogs((prev) => prev.filter((l) => l.id !== logId));
+    return true;
+  };
+
+  const deleteActivityLogs = async (logIds: string[]): Promise<number> => {
+    if (!isAdmin && !isSuperAdmin) {
+      throw new Error('Access Denied: Administrative authority required to modify audit trail.');
+    }
+    if (!logIds || logIds.length === 0) return 0;
+    const idsSet = new Set(logIds);
+    let count = 0;
+    setActivityLogs((prev) => {
+      const remaining = prev.filter((l) => {
+        if (idsSet.has(l.id)) {
+          count++;
+          return false;
+        }
+        return true;
+      });
+      return remaining;
+    });
+    return count;
+  };
+
+  const clearActivityLogs = async (filter?: { olderThanDays?: number; all?: boolean }): Promise<number> => {
+    if (!isAdmin && !isSuperAdmin) {
+      throw new Error('Access Denied: Administrative authority required to clear audit trail.');
+    }
+    let removedCount = 0;
+    setActivityLogs((prev) => {
+      if (filter?.all) {
+        removedCount = prev.length;
+        return [];
+      }
+      if (filter?.olderThanDays !== undefined) {
+        const cutoff = Date.now() - filter.olderThanDays * 24 * 60 * 60 * 1000;
+        const kept = prev.filter((l) => {
+          const logTime = new Date(l.timestamp).getTime();
+          if (logTime < cutoff) {
+            removedCount++;
+            return false;
+          }
+          return true;
+        });
+        return kept;
+      }
+      removedCount = prev.length;
+      return [];
+    });
+    return removedCount;
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -1455,6 +1524,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         deleteUser,
         toggleSuspendUser,
         toggleVerifyFarmer,
+        deleteActivityLog,
+        deleteActivityLogs,
+        clearActivityLogs,
         hasPermission,
         isAuthenticated: Boolean(currentUser),
         isSeller: currentUser?.role === 'seller',

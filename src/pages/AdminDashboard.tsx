@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Shield,
   ShieldCheck,
@@ -19,7 +19,6 @@ import {
   Mail,
   Star,
   Sparkles,
-  Clock,
   Eye,
   Settings,
   LogOut,
@@ -33,17 +32,21 @@ import {
   XCircle,
   MessageSquare,
   Flag,
+  Megaphone,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useProducts } from '../context/ProductContext';
 import { BENUE_LGAS } from '../constants/benue';
 import { formatNaira } from '../utils/formatters';
 import type { User, Report } from '../types';
+import type { Advertisement } from '../types/advertisement';
+import { fetchAllAdvertisements } from '../services/advertisingService';
 import { AddAdminModal } from '../components/admin/AddAdminModal';
 import { UserActionConfirmModal, type UserActionType } from '../components/admin/UserActionConfirmModal';
 import { AdminGalleryModal } from '../components/admin/AdminGalleryModal';
 import { AdminReplyModal } from '../components/admin/AdminReplyModal';
 import { AdminAdvertisingTab } from '../components/admin/AdminAdvertisingTab';
+import { AdminAuditLogsTab } from '../components/admin/AdminAuditLogsTab';
 import { Link, useNavigate } from 'react-router-dom';
 
 type AdminTab = 'admins' | 'vendors' | 'buyers' | 'listings' | 'reports' | 'advertising' | 'logs' | 'settings' | 'security';
@@ -83,6 +86,23 @@ export const AdminDashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [lgaFilter, setLgaFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'suspended'>('all');
+  const [allAds, setAllAds] = useState<Advertisement[]>([]);
+
+  useEffect(() => {
+    const loadAds = async () => {
+      try {
+        const ads = await fetchAllAdvertisements();
+        setAllAds(ads);
+      } catch {
+        setAllAds([]);
+      }
+    };
+    loadAds();
+  }, [activeTab]);
+
+  const activeAdsCount = useMemo(() => {
+    return allAds.filter((a) => a.advertisementStatus === 'active').length;
+  }, [allAds]);
 
 
   // Modals state
@@ -403,7 +423,7 @@ export const AdminDashboard: React.FC = () => {
       </div>
 
       {/* Metric Cards KPI Bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 mb-8">
         {/* Total Users */}
         <div className="bg-white p-4 rounded-2xl border border-[#E8E2D9] shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between text-[#6B7280]">
@@ -449,6 +469,21 @@ export const AdminDashboard: React.FC = () => {
           <div className="mt-3">
             <span className="text-2xl font-extrabold text-[#111827]">{products.length}</span>
             <p className="text-[11px] text-[#059669] font-medium mt-0.5">Live Produce Feeds</p>
+          </div>
+        </div>
+
+        {/* Active Advertisements */}
+        <div
+          onClick={() => setActiveTab('advertising')}
+          className="bg-white p-4 rounded-2xl border border-amber-200 hover:border-amber-400 shadow-xs flex flex-col justify-between cursor-pointer transition-all hover:shadow-md bg-gradient-to-r from-amber-50/40 to-white"
+        >
+          <div className="flex items-center justify-between text-[#6B7280]">
+            <span className="text-xs font-bold uppercase tracking-wider text-[#B45309]">Active Ads</span>
+            <Megaphone className="w-4 h-4 text-[#F59E0B]" />
+          </div>
+          <div className="mt-3">
+            <span className="text-2xl font-extrabold text-[#B45309]">{activeAdsCount}</span>
+            <p className="text-[11px] text-[#B45309] font-bold mt-0.5">{allAds.length} Total Campaigns</p>
           </div>
         </div>
 
@@ -581,8 +616,13 @@ export const AdminDashboard: React.FC = () => {
                 : 'text-[#374151] hover:bg-[#E8F5E9] hover:text-[#0F5132]'
             }`}
           >
-            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>campaign</span>
-            <span>Advertising</span>
+            <Megaphone className="w-4 h-4 text-[#F59E0B]" />
+            <span>Advertising ({allAds.length})</span>
+            {activeAdsCount > 0 && (
+              <span className="px-1.5 py-0.5 text-[9px] font-bold bg-[#FEAE3A] text-[#111827] rounded-full">
+                {activeAdsCount} active
+              </span>
+            )}
           </button>
 
           <button
@@ -902,6 +942,10 @@ export const AdminDashboard: React.FC = () => {
                 <tbody className="divide-y divide-[#E8E2D9]">
                   {filteredVendors.map((vendor) => {
                     const isSuspended = vendor.status === 'suspended';
+                    const vendorListingsCount = products.filter((p) => p.sellerId === vendor.id).length;
+                    const vendorActiveAdsCount = allAds.filter(
+                      (a) => a.vendorId === vendor.id && a.advertisementStatus === 'active'
+                    ).length;
                     return (
                       <tr key={vendor.id} className="hover:bg-[#FAF8F5]/80 transition-colors">
                         <td className="px-6 py-4">
@@ -912,7 +956,7 @@ export const AdminDashboard: React.FC = () => {
                             <div>
                               <p className="font-extrabold text-sm text-[#111827]">{vendor.name}</p>
                               <p className="text-[11px] text-[#6B7280] capitalize">
-                                {vendor.userType || 'Producer'} • {vendor.activeListingsCount || 0} active listings
+                                {vendor.userType || 'Producer'} • {vendorListingsCount} active listings{vendorActiveAdsCount > 0 ? ` (${vendorActiveAdsCount} promoted)` : ''}
                               </p>
                             </div>
                           </div>
@@ -1251,50 +1295,11 @@ export const AdminDashboard: React.FC = () => {
       {/* TAB 5: SECURITY AUDIT LOGS */}
       {/* ========================================================================= */}
       {activeTab === 'logs' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-extrabold text-[#111827] flex items-center gap-2">
-              <span>Security & Administrative Activity Trail</span>
-              <span className="text-xs font-semibold px-2.5 py-0.5 bg-[#E8F5E9] text-[#0F5132] rounded-full">
-                {activityLogs.length} events logged
-              </span>
-            </h2>
-            <span className="text-xs text-[#6B7280] flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5 text-[#0F5132]" />
-              Real-time audit log
-            </span>
-          </div>
-
-          <div className="bg-white rounded-3xl border border-[#E8E2D9] overflow-hidden shadow-sm">
-            <div className="divide-y divide-[#E8E2D9]">
-              {activityLogs.map((log) => (
-                <div key={log.id} className="p-4 sm:p-5 flex items-start gap-4 hover:bg-[#FAF8F5] transition-colors">
-                  <div className="w-9 h-9 rounded-xl bg-[#E8F5E9] text-[#0F5132] flex items-center justify-center shrink-0 border border-[#C8E6C9] mt-0.5">
-                    <Activity className="w-4 h-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <p className="font-extrabold text-sm text-[#111827]">
-                        {log.action} <span className="font-normal text-[#6B7280]">on</span> <span className="text-[#0F5132] font-bold">{log.target}</span>
-                      </p>
-                      <span className="text-[11px] text-[#9CA3AF] font-mono">
-                        {new Date(log.timestamp).toLocaleString()}
-                      </span>
-                    </div>
-                    {log.details && (
-                      <p className="text-xs text-[#4B5563] mt-1">{log.details}</p>
-                    )}
-                    <p className="text-[11px] text-[#6B7280] mt-1 flex items-center gap-1 font-medium">
-                      <span>Initiated by:</span>
-                      <strong className="text-[#111827]">{log.adminName}</strong>
-                      <span>({log.adminEmail})</span>
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        <AdminAuditLogsTab
+          activityLogs={activityLogs}
+          isSuperAdmin={isSuperAdmin}
+          showToast={showToast}
+        />
       )}
 
       {/* ========================================================================= */}
