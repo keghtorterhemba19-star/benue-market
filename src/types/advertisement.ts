@@ -5,10 +5,66 @@ import type { Product } from './index';
 export type PaymentStatus = 'pending' | 'success' | 'failed' | 'cancelled' | 'abandoned';
 export type AdvertisementStatus = 'pending' | 'active' | 'expired' | 'disabled' | 'cancelled' | 'trashed';
 
+export type SubscriptionPlanId = 'starter' | 'growth';
+
+export interface SubscriptionPlanConfig {
+  id: SubscriptionPlanId;
+  name: string;
+  price: number; // In Naira (₦)
+  durationDays: number;
+  badge: string;
+  tagline: string;
+  features: string[];
+  recommended?: boolean;
+}
+
+export const STARTER_PLAN_FEE = 2000; // ₦2,000 per month
+export const GROWTH_PLAN_FEE = 5000; // ₦5,000 per month
+export const ADVERTISING_FEE = 2000; // Default Starter: ₦2,000
+export const ADVERTISING_CURRENCY = 'NGN';
+export const ADVERTISING_DURATION_DAYS = 30; // 30 days per subscription cycle
+export const TRASH_RETENTION_DAYS = 30; // 30 days before auto permanent delete
+
+export const SUBSCRIPTION_PLANS: Record<SubscriptionPlanId, SubscriptionPlanConfig> = {
+  starter: {
+    id: 'starter',
+    name: 'Starter Plan',
+    price: STARTER_PLAN_FEE,
+    durationDays: 30,
+    badge: 'Starter',
+    tagline: 'Standard 30-day verified product subscription & promotion',
+    features: [
+      '30-day active product listing promotion',
+      'Verified Farmer & Produce badge in marketplace',
+      'Priority ranking in category and LGA search',
+      'Direct buyer WhatsApp & direct phone calls',
+      'Basic listing metrics & contact tracking',
+    ],
+  },
+  growth: {
+    id: 'growth',
+    name: 'Growth Plan',
+    price: GROWTH_PLAN_FEE,
+    durationDays: 30,
+    badge: 'Growth VIP',
+    tagline: 'Maximum visibility & VIP promotion for high-volume sales',
+    recommended: true,
+    features: [
+      'All Starter Plan features included',
+      'Top placement in Homepage Sponsored Harvests Carousel',
+      'Gold "VIP Growth" badge with high-contrast highlight border',
+      'Top-pinned spotlight in buyer search & filters',
+      'Interstate bulk buyer distribution spotlight',
+      'Fast-track 24/7 priority customer support desk',
+    ],
+  },
+};
+
 export interface Advertisement {
   id: string;
   vendorId: string;
   productId: string;
+  plan?: SubscriptionPlanId;
   amount: number;
   currency: string;
   paymentReference: string | null;
@@ -32,14 +88,11 @@ export interface Advertisement {
   product?: Product;
 }
 
+export type ProductSubscription = Advertisement;
+export type SubscriptionStatus = AdvertisementStatus;
 export interface AdvertisementWithProduct extends Advertisement {
   product: Product;
 }
-
-export const ADVERTISING_FEE = 1000; // ₦1,000
-export const ADVERTISING_CURRENCY = 'NGN';
-export const ADVERTISING_DURATION_DAYS = 30; // 30 days per ad cycle
-export const TRASH_RETENTION_DAYS = 30; // 30 days before auto permanent delete
 
 // Status display config
 export const AD_STATUS_CONFIG: Record<AdvertisementStatus, { label: string; color: string; bgColor: string; borderColor: string }> = {

@@ -1,5 +1,21 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import type { User, UserRole, BenueLGA, AdminActivityLog, AccountStatus, SellerAvailability, SellerReview, Report, ReportReason, ReopeningRequest } from '../types';
+import type {
+  User,
+  UserRole,
+  BenueLGA,
+  AdminActivityLog,
+  AccountStatus,
+  SellerAvailability,
+  SellerReview,
+  Report,
+  ReportReason,
+  ReopeningRequest,
+  SupportTicket,
+  TicketTopic,
+  TicketPriority,
+  TicketStatus,
+  TicketReply,
+} from '../types';
 import { MOCK_USERS, MOCK_REVIEWS } from '../data/mockData';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 import { fetchProfileFromSupabase, updateProfileInSupabase, upsertProfileInSupabase } from '../services/profileService';
@@ -7,6 +23,8 @@ import { sendPasswordResetEmail, sendPasswordChangedNotificationEmail } from '..
 import { validatePersonalEmail } from '../utils/emailValidator';
 import { generateSecureOtp, hashOtp } from '../utils/otpSecurity';
 import { checkComplaintRateLimit, recordComplaintSubmission } from '../utils/complaintRateLimiter';
+import { CURRENT_TERMS_VERSION } from '../constants/legal';
+import { recordTermsAcceptance } from '../services/termsService';
 
 // SECURITY: Admin email loaded from env var; password NEVER stored in source code
 export const SUPER_ADMIN_EMAIL = (import.meta.env.VITE_SUPER_ADMIN_EMAIL || 'keghtorterhemba19@gmail.com').trim().toLowerCase();
@@ -62,6 +80,74 @@ const INITIAL_REPORTS: Report[] = [
   }
 ];
 
+const INITIAL_SUPPORT_TICKETS: SupportTicket[] = [
+  {
+    id: 'BM-TK-94812',
+    createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+    updatedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+    submitterName: 'Chief Emeka Okafor',
+    submitterEmail: 'emeka.food@lagosmarket.com',
+    submitterPhone: '+234 803 234 5678',
+    submitterRole: 'buyer',
+    topic: 'buyer_orders_logistics',
+    priority: 'high',
+    subject: 'Bulk Zaki Biam Yam Transport & Waybill to Mile 12 Lagos',
+    message: 'Hello Benue Market Desk. We represent a wholesale foods consortium in Lagos. We want to secure 500 tubers of export-grade white yams from Ukum LGA farmers. Can the platform provide certified logistics partners or escrow waybill arrangements for transit security?',
+    status: 'open',
+    replies: [],
+  },
+  {
+    id: 'BM-TK-83104',
+    createdAt: new Date(Date.now() - 3600000 * 5).toISOString(),
+    updatedAt: new Date(Date.now() - 3600000 * 1).toISOString(),
+    submitterName: 'Tor-Anyam Yam Farmers Co-op',
+    submitterEmail: 'toranyam.coop@benuemarket.ng',
+    submitterPhone: '+234 802 888 1234',
+    submitterRole: 'farmer',
+    topic: 'subscription_plans',
+    priority: 'medium',
+    subject: 'Upgrading produce to Growth VIP Plan (₦5,000)',
+    message: 'Good day administration. We recently subscribed our Yellow Soybeans listing on the Starter Plan (₦2,000), but we want to upgrade to the Growth Plan (₦5,000) so our produce appears on the VIP Homepage Carousel and reaches interstate bulk buyers. How can we proceed with the payment difference?',
+    status: 'in_progress',
+    replies: [
+      {
+        id: 'rep-tk-1',
+        senderName: 'Keghtor Terhemba (Super Admin)',
+        senderEmail: SUPER_ADMIN_EMAIL,
+        senderRole: 'super_admin',
+        message: 'Hello Tor-Anyam Cooperative! We have activated the Growth Plan upgrade pathway for your account. You can select Growth Plan directly on your produce card or complete the top-up transfer.',
+        createdAt: new Date(Date.now() - 3600000 * 1).toISOString(),
+      }
+    ],
+  },
+  {
+    id: 'BM-TK-71950',
+    createdAt: new Date(Date.now() - 86400000 * 1.5).toISOString(),
+    updatedAt: new Date(Date.now() - 86400000).toISOString(),
+    resolvedAt: new Date(Date.now() - 86400000).toISOString(),
+    submitterName: 'Aver Aondohemba',
+    submitterEmail: 'aver.farm@gboko.org',
+    submitterPhone: '+234 814 555 7890',
+    submitterRole: 'farmer',
+    topic: 'farmer_verification',
+    priority: 'low',
+    subject: 'Gboko LGA Citrus Farm Verification Badge Request',
+    message: 'I have submitted my cooperative registration certificate and farm coordinates in Gboko LGA. Kindly verify my seller account so buyers know my citrus produce is authentic farmgate harvest.',
+    status: 'resolved',
+    adminNotes: 'Verified via Gboko Agricultural extension registry.',
+    replies: [
+      {
+        id: 'rep-tk-2',
+        senderName: 'Keghtor Terhemba (Super Admin)',
+        senderEmail: SUPER_ADMIN_EMAIL,
+        senderRole: 'super_admin',
+        message: 'Your verification has been completed! The verified green shield badge is now active on all your marketplace listings.',
+        createdAt: new Date(Date.now() - 86400000).toISOString(),
+      }
+    ],
+  },
+];
+
 export interface AddAdminPayload {
   name: string;
   email: string;
@@ -76,6 +162,7 @@ interface AuthContextType {
   activityLogs: AdminActivityLog[];
   reviews: SellerReview[];
   reports: Report[];
+  tickets: SupportTicket[];
   login: (email: string, role?: UserRole, password?: string) => Promise<{
     success: boolean;
     error?: string;
@@ -85,11 +172,22 @@ interface AuthContextType {
     user?: User;
   }>;
   logout: () => Promise<void>;
-  register: (name: string, email: string, phone: string, role: UserRole, lga?: BenueLGA, password?: string) => Promise<{
+  register: (
+    name: string,
+    email: string,
+    phone: string,
+    role: UserRole,
+    lga?: BenueLGA,
+    password?: string,
+    termsVersion?: string
+  ) => Promise<{
     success: boolean;
     isExisting?: boolean;
     error?: string;
   }>;
+  acceptTerms: (version?: string) => Promise<boolean>;
+  termsAccepted: boolean;
+  currentTermsVersion: string;
   requestPasswordReset: (email: string) => Promise<{ success: boolean; error?: string; otp?: string; redirectUrl?: string; inAppOtp?: string }>;
   verifyResetOtp: (email: string, otp: string) => Promise<{ success: boolean; error?: string }>;
   resetPassword: (email: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
@@ -121,6 +219,22 @@ interface AuthContextType {
   }) => Promise<Report>;
   resolveReport: (reportId: string) => Promise<void>;
   deleteReport: (reportId: string) => Promise<void>;
+
+  // Support & Help Desk System
+  createSupportTicket: (ticketData: {
+    submitterName: string;
+    submitterEmail: string;
+    submitterPhone: string;
+    submitterRole: 'farmer' | 'buyer' | 'cooperative' | 'trader' | 'guest';
+    topic: TicketTopic;
+    priority: TicketPriority;
+    subject: string;
+    message: string;
+    userId?: string;
+  }) => Promise<SupportTicket>;
+  updateTicketStatus: (ticketId: string, status: TicketStatus, adminNotes?: string) => Promise<void>;
+  replyToTicket: (ticketId: string, message: string, senderRole?: 'super_admin' | 'admin' | 'farmer' | 'buyer' | 'user') => Promise<void>;
+  deleteSupportTicket: (ticketId: string) => Promise<void>;
 
   // Super Admin Executive Functions
   addAdmin: (adminData: AddAdminPayload) => Promise<User>;
@@ -178,7 +292,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return local ? JSON.parse(local) : INITIAL_REPORTS;
   });
 
-  // 5. Currently Logged In User — SECURITY: No auto-login; require explicit authentication
+  // 5. Support Tickets State
+  const [tickets, setTickets] = useState<SupportTicket[]>(() => {
+    const local = localStorage.getItem('benue_market_support_tickets');
+    if (!local) return INITIAL_SUPPORT_TICKETS;
+    try {
+      const parsed: SupportTicket[] = JSON.parse(local);
+      const existingIds = new Set(parsed.map((t) => t.id));
+      const missingSeeds = INITIAL_SUPPORT_TICKETS.filter((st) => !existingIds.has(st.id));
+      return [...parsed, ...missingSeeds];
+    } catch {
+      return INITIAL_SUPPORT_TICKETS;
+    }
+  });
+
+  // 6. Currently Logged In User — SECURITY: No auto-login; require explicit authentication
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     const local = localStorage.getItem('benue_market_user');
     if (local) {
@@ -235,6 +363,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [reports]);
 
+  // Synchronize support tickets with localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('benue_market_support_tickets', JSON.stringify(tickets));
+    } catch (err) {
+      console.warn('localStorage quota limit reached for support tickets:', err);
+    }
+  }, [tickets]);
+
   // Synchronize current user with localStorage
   useEffect(() => {
     try {
@@ -272,6 +409,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setReports(JSON.parse(e.newValue));
         } catch {}
       }
+      if (e.key === 'benue_market_support_tickets' && e.newValue) {
+        try {
+          setTickets(JSON.parse(e.newValue));
+        } catch {}
+      }
       if (e.key === 'benue_market_admin_logs' && e.newValue) {
         try {
           setActivityLogs(JSON.parse(e.newValue));
@@ -301,27 +443,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
-        const profile = await fetchProfileFromSupabase(session.user.id);
+        let profile = await fetchProfileFromSupabase(session.user.id);
+        const meta = session.user.user_metadata || {};
+        const metaRole = (meta.role as UserRole) || undefined;
+        const isSuper = session.user.email?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase();
+
         if (profile) {
-          if (profile.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
+          if (isSuper) {
             profile.role = 'super_admin';
             profile.isSuperAdmin = true;
+          } else if (metaRole && (metaRole === 'seller' || metaRole === 'buyer') && profile.role !== metaRole) {
+            // Reconcile role from user_metadata so a farmer account is never demoted to buyer
+            profile.role = metaRole;
+            profile.userType = metaRole === 'seller' ? 'farmer' : 'buyer_merchant';
+            profile.isVerified = metaRole === 'seller';
+            updateProfileInSupabase(session.user.id, {
+              role: metaRole,
+              userType: profile.userType,
+              isVerified: profile.isVerified,
+            }).catch(console.warn);
           }
           setCurrentUser(profile);
         } else {
-          const meta = session.user.user_metadata || {};
-          const isSuper = session.user.email?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase();
+          const targetRole = isSuper ? 'super_admin' : (metaRole || 'buyer');
           const fallbackUser: User = {
             id: session.user.id,
             name: meta.name || session.user.email?.split('@')[0] || 'Benue User',
             email: session.user.email || '',
             phone: meta.phone || '08000000000',
             whatsapp: meta.whatsapp || meta.phone || '08000000000',
-            role: isSuper ? 'super_admin' : ((meta.role as UserRole) || 'buyer'),
+            role: targetRole,
+            userType: targetRole === 'seller' ? 'farmer' : targetRole === 'super_admin' ? 'administrator' : 'buyer_merchant',
             isSuperAdmin: isSuper,
             status: 'active',
             lga: (meta.lga as BenueLGA) || 'Makurdi',
-            isVerified: isSuper || meta.role === 'seller',
+            isVerified: isSuper || targetRole === 'seller',
             createdAt: session.user.created_at || new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           };
@@ -450,16 +606,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (!error && data.user) {
           let profile = await fetchProfileFromSupabase(data.user.id);
+          const metaRole = (data.user.user_metadata?.role as UserRole) || undefined;
+
           if (!profile) {
             profile = await upsertProfileInSupabase({
               id: data.user.id,
               email: cleanEmail,
               name: data.user.user_metadata?.name || cleanEmail.split('@')[0],
               phone: data.user.user_metadata?.phone || '08000000000',
-              role: (data.user.user_metadata?.role as UserRole) || requestedRole || 'buyer',
+              role: metaRole || requestedRole || 'buyer',
               lga: (data.user.user_metadata?.lga as BenueLGA) || 'Makurdi',
               status: 'active',
             });
+          } else if (metaRole && (metaRole === 'seller' || metaRole === 'buyer') && profile.role !== metaRole) {
+            // Reconcile role from user_metadata so farmer remains farmer
+            profile.role = metaRole;
+            profile.userType = metaRole === 'seller' ? 'farmer' : 'buyer_merchant';
+            profile.isVerified = metaRole === 'seller';
+            updateProfileInSupabase(data.user.id, {
+              role: metaRole,
+              userType: profile.userType,
+              isVerified: profile.isVerified,
+            }).catch(console.warn);
           }
 
           if (profile) {
@@ -663,7 +831,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     phone: string,
     role: UserRole,
     lga: BenueLGA = 'Makurdi',
-    password = ''
+    password = '',
+    termsVersion: string = CURRENT_TERMS_VERSION
   ): Promise<{ success: boolean; isExisting?: boolean; error?: string }> => {
     if (!password || password.length < 6) {
       return { success: false, error: 'Password must be at least 6 characters long.' };
@@ -680,13 +849,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     }
 
+    const acceptedTimestamp = new Date().toISOString();
+
     if (isSupabaseActive) {
       try {
         const { data, error } = await supabase.auth.signUp({
           email: cleanEmail,
           password,
           options: {
-            data: { name, phone, role, lga },
+            data: { name, phone, role, lga, termsVersion, termsAcceptedAt: acceptedTimestamp },
           },
         });
 
@@ -696,33 +867,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         if (data.user) {
-          let profile = await fetchProfileFromSupabase(data.user.id);
-          if (!profile) {
-            profile = await upsertProfileInSupabase({
-              id: data.user.id,
-              name,
-              email: cleanEmail,
-              phone,
-              whatsapp: phone,
-              role,
-              lga,
-              userType: role === 'seller' ? 'farmer' : 'buyer_merchant',
-              isVerified: role === 'seller',
-              status: 'active',
-            });
-          }
+          // Explicitly record legal acceptance in audit table & profiles table
+          await recordTermsAcceptance(data.user.id, termsVersion, role);
 
-          const registeredUser: User = profile || {
+          // Explicitly upsert profile in Supabase to GUARANTEE role and terms are preserved
+          const profilePayload = {
             id: data.user.id,
             name,
             email: cleanEmail,
             phone,
             whatsapp: phone,
-            role,
+            role, // 'seller' for farmer, 'buyer' for buyer
+            userType: (role === 'seller' ? 'farmer' : 'buyer_merchant') as any,
+            lga,
+            isVerified: role === 'seller',
+            status: 'active' as const,
+            termsAcceptedVersion: termsVersion,
+            termsAcceptedAt: acceptedTimestamp,
+          };
+
+          const upsertedProfile = await upsertProfileInSupabase(profilePayload);
+          const dbProfile = upsertedProfile || await fetchProfileFromSupabase(data.user.id);
+
+          const registeredUser: User = {
+            ...(dbProfile || {}),
+            id: data.user.id,
+            name,
+            email: cleanEmail,
+            phone,
+            whatsapp: phone,
+            role, // STRICT ENFORCEMENT: Never let database default downgrade farmer to buyer
             userType: role === 'seller' ? 'farmer' : 'buyer_merchant',
             lga,
             isVerified: role === 'seller',
             status: 'active',
+            password,
+            termsAcceptedVersion: termsVersion,
+            termsAcceptedAt: acceptedTimestamp,
             createdAt: data.user.created_at || new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           };
@@ -737,8 +918,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
+    const fallbackUserId = `user-${Date.now()}`;
+    await recordTermsAcceptance(fallbackUserId, termsVersion, role);
+
     const newUser: User = {
-      id: `user-${Date.now()}`,
+      id: fallbackUserId,
       name,
       email: cleanEmail,
       phone,
@@ -749,6 +933,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isVerified: role === 'seller',
       status: 'active',
       password, // Store password so user can log back in after logout
+      termsAcceptedVersion: termsVersion,
+      termsAcceptedAt: acceptedTimestamp,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -756,6 +942,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUsers((prev) => [newUser, ...prev]);
     setCurrentUser(newUser);
     return { success: true };
+  };
+
+  // Legal-document versioning re-acceptance mechanism
+  const acceptTerms = async (version: string = CURRENT_TERMS_VERSION): Promise<boolean> => {
+    if (!currentUser) return false;
+
+    const acceptedTimestamp = new Date().toISOString();
+    await recordTermsAcceptance(currentUser.id, version, currentUser.role);
+
+    const updatedUser: User = {
+      ...currentUser,
+      termsAcceptedVersion: version,
+      termsAcceptedAt: acceptedTimestamp,
+      updatedAt: acceptedTimestamp,
+    };
+
+    setCurrentUser(updatedUser);
+    setUsers((prev) => prev.map((u) => (u.id === currentUser.id ? updatedUser : u)));
+
+    if (isSupabaseActive) {
+      try {
+        await updateProfileInSupabase(currentUser.id, {
+          termsAcceptedVersion: version,
+          termsAcceptedAt: acceptedTimestamp,
+        });
+      } catch (err) {
+        console.warn('[AuthContext] Error updating terms in Supabase:', err);
+      }
+    }
+
+    return true;
   };
 
   // Requirement 5: Submit structured request to reopen suspended account
@@ -1099,34 +1316,100 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updateProfileImage = async (imageUrl: string) => {
-    setCurrentUser((prev) => (prev ? { ...prev, profileImage: imageUrl, updatedAt: new Date().toISOString() } : null));
-    setUsers((prev) => prev.map((u) => (currentUser && u.id === currentUser.id ? { ...u, profileImage: imageUrl, updatedAt: new Date().toISOString() } : u)));
+    const now = new Date().toISOString();
+    const targetId = currentUser?.id;
+    const targetEmail = currentUser?.email?.toLowerCase();
 
-    if (isSupabaseActive && currentUser) {
-      await updateProfileInSupabase(currentUser.id, { profileImage: imageUrl });
+    setCurrentUser((prev) => (prev ? { ...prev, profileImage: imageUrl, updatedAt: now } : null));
+
+    setUsers((prev) => {
+      let matched = false;
+      const updated = prev.map((u) => {
+        if ((targetId && u.id === targetId) || (targetEmail && u.email?.toLowerCase() === targetEmail)) {
+          matched = true;
+          return { ...u, profileImage: imageUrl, updatedAt: now };
+        }
+        return u;
+      });
+      if (!matched && currentUser) {
+        return [{ ...currentUser, profileImage: imageUrl, updatedAt: now }, ...updated];
+      }
+      return updated;
+    });
+
+    try {
+      if (currentUser) {
+        localStorage.setItem('benue_market_user', JSON.stringify({ ...currentUser, profileImage: imageUrl, updatedAt: now }));
+      }
+    } catch {}
+
+    if (isSupabaseActive && targetId) {
+      await updateProfileInSupabase(targetId, { profileImage: imageUrl });
     }
   };
 
   const updateCoverImage = async (coverUrl: string) => {
-    setCurrentUser((prev) => (prev ? { ...prev, coverImage: coverUrl, updatedAt: new Date().toISOString() } : null));
-    setUsers((prev) => prev.map((u) => (currentUser && u.id === currentUser.id ? { ...u, coverImage: coverUrl, updatedAt: new Date().toISOString() } : u)));
+    const now = new Date().toISOString();
+    const targetId = currentUser?.id;
+    const targetEmail = currentUser?.email?.toLowerCase();
 
-    if (isSupabaseActive && currentUser) {
-      await updateProfileInSupabase(currentUser.id, { coverImage: coverUrl });
+    setCurrentUser((prev) => (prev ? { ...prev, coverImage: coverUrl, updatedAt: now } : null));
+
+    setUsers((prev) => {
+      let matched = false;
+      const updated = prev.map((u) => {
+        if ((targetId && u.id === targetId) || (targetEmail && u.email?.toLowerCase() === targetEmail)) {
+          matched = true;
+          return { ...u, coverImage: coverUrl, updatedAt: now };
+        }
+        return u;
+      });
+      if (!matched && currentUser) {
+        return [{ ...currentUser, coverImage: coverUrl, updatedAt: now }, ...updated];
+      }
+      return updated;
+    });
+
+    try {
+      if (currentUser) {
+        localStorage.setItem('benue_market_user', JSON.stringify({ ...currentUser, coverImage: coverUrl, updatedAt: now }));
+      }
+    } catch {}
+
+    if (isSupabaseActive && targetId) {
+      await updateProfileInSupabase(targetId, { coverImage: coverUrl });
     }
   };
 
   const updateUserProfile = async (userId: string, updates: Partial<User>) => {
-    setUsers((prev) =>
-      prev.map((u) => {
-        if (u.id === userId) {
-          return { ...u, ...updates, updatedAt: new Date().toISOString() };
+    const now = new Date().toISOString();
+    const targetEmail = currentUser?.id === userId ? currentUser?.email?.toLowerCase() : undefined;
+
+    setUsers((prev) => {
+      let matched = false;
+      const updated = prev.map((u) => {
+        if (u.id === userId || (targetEmail && u.email?.toLowerCase() === targetEmail)) {
+          matched = true;
+          return { ...u, ...updates, updatedAt: now };
         }
         return u;
-      })
-    );
+      });
+      if (!matched && currentUser && currentUser.id === userId) {
+        return [{ ...currentUser, ...updates, updatedAt: now }, ...updated];
+      }
+      return updated;
+    });
 
-    setCurrentUser((prev) => (prev && prev.id === userId ? { ...prev, ...updates, updatedAt: new Date().toISOString() } : prev));
+    setCurrentUser((prev) => {
+      if (prev && (prev.id === userId || (targetEmail && prev.email?.toLowerCase() === targetEmail))) {
+        const next = { ...prev, ...updates, updatedAt: now };
+        try {
+          localStorage.setItem('benue_market_user', JSON.stringify(next));
+        } catch {}
+        return next;
+      }
+      return prev;
+    });
 
     if (isSupabaseActive) {
       await updateProfileInSupabase(userId, updates);
@@ -1155,14 +1438,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [users]);
 
   const updateUserGallery = async (userId: string, newGallery: string[], newAvatarUrl?: string) => {
+    const now = new Date().toISOString();
+    const targetEmail = currentUser?.id === userId ? currentUser?.email?.toLowerCase() : undefined;
+
     setUsers((prev) =>
       prev.map((u) => {
-        if (u.id === userId) {
+        if (u.id === userId || (targetEmail && u.email?.toLowerCase() === targetEmail)) {
           return {
             ...u,
             gallery: newGallery,
             ...(newAvatarUrl ? { profileImage: newAvatarUrl } : {}),
-            updatedAt: new Date().toISOString(),
+            updatedAt: now,
           };
         }
         return u;
@@ -1170,19 +1456,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 
     setCurrentUser((prev) => {
-      if (prev && prev.id === userId) {
-        return {
+      if (prev && (prev.id === userId || (targetEmail && prev.email?.toLowerCase() === targetEmail))) {
+        const updated = {
           ...prev,
           gallery: newGallery,
           ...(newAvatarUrl ? { profileImage: newAvatarUrl } : {}),
-          updatedAt: new Date().toISOString(),
+          updatedAt: now,
         };
+        try {
+          localStorage.setItem('benue_market_user', JSON.stringify(updated));
+        } catch {}
+        return updated;
       }
       return prev;
     });
 
-    if (isSupabaseActive && newAvatarUrl) {
-      await updateProfileInSupabase(userId, { profileImage: newAvatarUrl });
+    if (isSupabaseActive) {
+      await updateProfileInSupabase(userId, {
+        ...(newAvatarUrl ? { profileImage: newAvatarUrl } : {}),
+      });
     }
   };
 
@@ -1298,6 +1590,104 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const deleteReport = async (reportId: string) => {
     setReports((prev) => prev.filter((r) => r.id !== reportId));
     logAdminAction('Report Dismissed', reportId, 'Removed report from queue');
+  };
+
+  // ==============================================================================
+  // SUPPORT TICKETS & HELP DESK ENGINE
+  // ==============================================================================
+  const createSupportTicket = async (ticketData: {
+    submitterName: string;
+    submitterEmail: string;
+    submitterPhone: string;
+    submitterRole: 'farmer' | 'buyer' | 'cooperative' | 'trader' | 'guest';
+    topic: TicketTopic;
+    priority: TicketPriority;
+    subject: string;
+    message: string;
+    userId?: string;
+  }): Promise<SupportTicket> => {
+    const randomSuffix = Math.floor(10000 + Math.random() * 90000);
+    const newTicket: SupportTicket = {
+      id: `BM-TK-${randomSuffix}`,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      userId: ticketData.userId || currentUser?.id,
+      submitterName: ticketData.submitterName,
+      submitterEmail: ticketData.submitterEmail.trim().toLowerCase(),
+      submitterPhone: ticketData.submitterPhone,
+      submitterRole: ticketData.submitterRole,
+      topic: ticketData.topic,
+      priority: ticketData.priority,
+      subject: ticketData.subject,
+      message: ticketData.message,
+      status: 'open',
+      replies: [],
+    };
+
+    setTickets((prev) => [newTicket, ...prev]);
+    logAdminAction(
+      'Support Ticket Opened',
+      `#${newTicket.id} (${ticketData.submitterName})`,
+      `Topic: ${ticketData.topic} | Priority: ${ticketData.priority}`
+    );
+    return newTicket;
+  };
+
+  const updateTicketStatus = async (ticketId: string, status: TicketStatus, adminNotes?: string) => {
+    const now = new Date().toISOString();
+    setTickets((prev) =>
+      prev.map((t) =>
+        t.id === ticketId
+          ? {
+              ...t,
+              status,
+              updatedAt: now,
+              ...(status === 'resolved' ? { resolvedAt: now } : {}),
+              ...(adminNotes ? { adminNotes } : {}),
+            }
+          : t
+      )
+    );
+    logAdminAction(
+      'Support Ticket Status Updated',
+      ticketId,
+      `Status changed to: ${status.toUpperCase()}${adminNotes ? ` | Note: ${adminNotes}` : ''}`
+    );
+  };
+
+  const replyToTicket = async (
+    ticketId: string,
+    message: string,
+    senderRole?: 'super_admin' | 'admin' | 'farmer' | 'buyer' | 'user'
+  ) => {
+    const now = new Date().toISOString();
+    const newReply: TicketReply = {
+      id: `rep-tk-${Date.now()}`,
+      senderName: currentUser?.name || 'Benue Market Support',
+      senderEmail: currentUser?.email || SUPER_ADMIN_EMAIL,
+      senderRole: senderRole || (isSuperAdmin ? 'super_admin' : (isAdmin ? 'admin' : (currentUser?.role || 'user'))),
+      message,
+      createdAt: now,
+    };
+
+    setTickets((prev) =>
+      prev.map((t) =>
+        t.id === ticketId
+          ? {
+              ...t,
+              updatedAt: now,
+              status: t.status === 'open' && (isAdmin || isSuperAdmin) ? 'in_progress' : t.status,
+              replies: [...(t.replies || []), newReply],
+            }
+          : t
+      )
+    );
+    logAdminAction('Support Ticket Replied', ticketId, `Reply sent by ${newReply.senderName}`);
+  };
+
+  const deleteSupportTicket = async (ticketId: string) => {
+    setTickets((prev) => prev.filter((t) => t.id !== ticketId));
+    logAdminAction('Support Ticket Dismissed', ticketId, 'Ticket removed from help desk queue');
   };
 
   // ==============================================================================
@@ -1499,6 +1889,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         activityLogs,
         reviews,
         reports,
+        tickets,
+        createSupportTicket,
+        updateTicketStatus,
+        replyToTicket,
+        deleteSupportTicket,
         login,
         logout,
         register,
@@ -1528,6 +1923,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         deleteActivityLogs,
         clearActivityLogs,
         hasPermission,
+        acceptTerms,
+        termsAccepted: currentUser?.termsAcceptedVersion === CURRENT_TERMS_VERSION,
+        currentTermsVersion: CURRENT_TERMS_VERSION,
         isAuthenticated: Boolean(currentUser),
         isSeller: currentUser?.role === 'seller',
         isBuyer: currentUser?.role === 'buyer',

@@ -1,6 +1,13 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient';
-import type { Advertisement, PaymentStatus, AdvertisementStatus } from '../types/advertisement';
-import { ADVERTISING_FEE, ADVERTISING_CURRENCY, ADVERTISING_DURATION_DAYS } from '../types/advertisement';
+import type { Advertisement, PaymentStatus, AdvertisementStatus, SubscriptionPlanId } from '../types/advertisement';
+import {
+  ADVERTISING_FEE,
+  ADVERTISING_CURRENCY,
+  ADVERTISING_DURATION_DAYS,
+  STARTER_PLAN_FEE,
+  GROWTH_PLAN_FEE,
+  SUBSCRIPTION_PLANS,
+} from '../types/advertisement';
 
 // ── Paystack Configuration ──
 const isValidPaystackKey = (key: string): boolean => {
@@ -37,13 +44,14 @@ const INITIAL_SEED_ADVERTISEMENTS: Advertisement[] = [
     id: 'ad-seed-1',
     vendorId: 'farmer-1',
     productId: 'prod-1',
-    amount: ADVERTISING_FEE,
+    plan: 'growth',
+    amount: GROWTH_PLAN_FEE,
     currency: 'NGN',
     paymentReference: 'BM-AD-PROD1-SEED',
     paymentStatus: 'success',
     advertisementStatus: 'active',
     startsAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    expiresAt: new Date(Date.now() + 12 * 24 * 60 * 60 * 1000).toISOString(),
+    expiresAt: new Date(Date.now() + 28 * 24 * 60 * 60 * 1000).toISOString(),
     createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
     vendorName: 'Zaki Biam Yam Farmers Co-op',
@@ -56,13 +64,14 @@ const INITIAL_SEED_ADVERTISEMENTS: Advertisement[] = [
     id: 'ad-seed-2',
     vendorId: 'farmer-2',
     productId: 'prod-2',
-    amount: ADVERTISING_FEE,
+    plan: 'starter',
+    amount: STARTER_PLAN_FEE,
     currency: 'NGN',
     paymentReference: 'BM-AD-PROD2-SEED',
     paymentStatus: 'success',
     advertisementStatus: 'active',
     startsAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    expiresAt: new Date(Date.now() + 9 * 24 * 60 * 60 * 1000).toISOString(),
+    expiresAt: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000).toISOString(),
     createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
     vendorName: 'Gboko Grains & Oilseed Hub',
@@ -75,13 +84,14 @@ const INITIAL_SEED_ADVERTISEMENTS: Advertisement[] = [
     id: 'ad-seed-3',
     vendorId: 'farmer-4',
     productId: 'prod-5',
-    amount: ADVERTISING_FEE,
+    plan: 'growth',
+    amount: GROWTH_PLAN_FEE,
     currency: 'NGN',
     paymentReference: 'BM-AD-PROD5-SEED',
     paymentStatus: 'success',
     advertisementStatus: 'active',
     startsAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    expiresAt: new Date(Date.now() + 13 * 24 * 60 * 60 * 1000).toISOString(),
+    expiresAt: new Date(Date.now() + 29 * 24 * 60 * 60 * 1000).toISOString(),
     createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
     vendorName: 'Makurdi Citrus & Vegetable Growers',
@@ -213,17 +223,22 @@ export const mapAdRowToAdvertisement = (row: SupabaseAdRow): Advertisement => {
 // ── CRUD Operations ──
 
 /**
- * Create a new advertisement record (pending payment)
+ * Create a new advertisement/subscription record (pending payment)
  */
 export const createAdvertisement = async (
   vendorId: string,
-  productId: string
+  productId: string,
+  plan: SubscriptionPlanId = 'starter'
 ): Promise<Advertisement | null> => {
+  const planConfig = SUBSCRIPTION_PLANS[plan] || SUBSCRIPTION_PLANS.starter;
+  const planFee = planConfig.price;
+
   const newAd: Advertisement = {
     id: `ad-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
     vendorId,
     productId,
-    amount: ADVERTISING_FEE,
+    plan,
+    amount: planFee,
     currency: ADVERTISING_CURRENCY,
     paymentReference: null,
     paymentStatus: 'pending',
@@ -242,7 +257,7 @@ export const createAdvertisement = async (
           {
             vendor_id: vendorId,
             product_id: productId,
-            amount: ADVERTISING_FEE,
+            amount: planFee,
             currency: ADVERTISING_CURRENCY,
             payment_status: 'pending',
             advertisement_status: 'pending',
@@ -253,6 +268,7 @@ export const createAdvertisement = async (
 
       if (!error && data) {
         const dbAd = mapAdRowToAdvertisement(data as SupabaseAdRow);
+        dbAd.plan = plan;
         upsertLocalAd(dbAd);
         return dbAd;
       }
@@ -271,23 +287,28 @@ export const createAdvertisement = async (
 export const updateAdvertisementPayment = async (
   adId: string,
   paymentReference: string,
-  paymentStatus: PaymentStatus
+  paymentStatus: PaymentStatus,
+  plan?: SubscriptionPlanId
 ): Promise<Advertisement | null> => {
   const now = new Date();
   const expiresAt = new Date(now.getTime() + ADVERTISING_DURATION_DAYS * 24 * 60 * 60 * 1000);
 
   const localAds = getStoredLocalAds();
   const existing = localAds.find((a) => a.id === adId);
+  const activePlan = plan || existing?.plan || 'starter';
+  const planFee = SUBSCRIPTION_PLANS[activePlan]?.price || existing?.amount || STARTER_PLAN_FEE;
 
   const updatedAd: Advertisement = {
     ...(existing || {
       id: adId,
       vendorId: 'vendor-unknown',
       productId: 'prod-unknown',
-      amount: ADVERTISING_FEE,
+      amount: planFee,
       currency: ADVERTISING_CURRENCY,
       createdAt: now.toISOString(),
     }),
+    plan: activePlan,
+    amount: planFee,
     paymentReference,
     paymentStatus,
     advertisementStatus: paymentStatus === 'success' ? 'active' : 'cancelled',

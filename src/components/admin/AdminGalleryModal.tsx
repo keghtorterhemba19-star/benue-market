@@ -13,11 +13,12 @@ import {
   Image as ImageIcon,
   Link as LinkIcon,
   Download,
-  Star
+  Star,
+  Loader2,
 } from 'lucide-react';
 import type { User } from '../../types';
-
 import { compressImageFile } from '../../utils/imageCompressor';
+import { uploadMediaToSupabaseBucket } from '../../services/productService';
 
 interface AdminGalleryModalProps {
   isOpen: boolean;
@@ -119,35 +120,43 @@ export const AdminGalleryModal: React.FC<AdminGalleryModalProps> = ({
   };
 
   // Handle local file upload & compressed base64 conversion
-  const handleFileUpload = (files: FileList | null) => {
+  const handleFileUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
 
     setIsUploading(true);
-    const fileArray = Array.from(files);
-    const readPromises: Promise<string>[] = [];
+    try {
+      const file = files[0];
+      if (!file.type.startsWith('image/')) {
+        triggerToast('⚠️ Please select a valid image file');
+        return;
+      }
 
-    fileArray.forEach((file) => {
-      if (!file.type.startsWith('image/')) return;
-      readPromises.push(compressImageFile(file, 800, 800, 0.8));
-    });
+      let newImageUrl: string | null = null;
+      // Try Supabase Storage first
+      const result = await uploadMediaToSupabaseBucket(file, 'avatars');
+      if (result.url) {
+        newImageUrl = result.url;
+      } else {
+        // High-efficiency fallback
+        newImageUrl = await compressImageFile(file, 600, 600, 0.8);
+      }
 
-    Promise.all(readPromises)
-      .then(async (newBase64Images) => {
-        if (newBase64Images.length > 0) {
-          const combined = [...newBase64Images, ...userGallery];
-          const firstNew = newBase64Images[0];
-          const newAvatar = !adminUser.profileImage ? firstNew : adminUser.profileImage;
-          await onUpdateGallery(adminUser.id, combined, newAvatar);
-          triggerToast(`✅ Uploaded ${newBase64Images.length} photo(s) to gallery!`);
-          setActiveTab('gallery');
-        }
-      })
-      .catch((err) => {
-        console.error('File upload error:', err);
-      })
-      .finally(() => {
-        setIsUploading(false);
-      });
+      if (newImageUrl) {
+        // The newly uploaded photo immediately replaces the old avatar
+        const updatedGallery = [newImageUrl, ...userGallery.filter((url) => url !== newImageUrl)];
+        await onUpdateGallery(adminUser.id, updatedGallery, newImageUrl);
+        triggerToast('✨ New administrator avatar uploaded & active!');
+        setActiveTab('gallery');
+      }
+    } catch (err) {
+      console.error('File upload error:', err);
+      triggerToast('⚠️ Failed to process image upload');
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
   };
 
   // Handle URL Add
@@ -162,21 +171,18 @@ export const AdminGalleryModal: React.FC<AdminGalleryModalProps> = ({
     }
 
     setUrlError(null);
-    const updatedGallery = [trimmed, ...userGallery];
-    const newAvatar = !adminUser.profileImage ? trimmed : adminUser.profileImage;
-    await onUpdateGallery(adminUser.id, updatedGallery, newAvatar);
+    const updatedGallery = [trimmed, ...userGallery.filter((url) => url !== trimmed)];
+    await onUpdateGallery(adminUser.id, updatedGallery, trimmed);
     setUrlInput('');
-    triggerToast('🌐 Photo URL added to gallery!');
+    triggerToast('🌐 Photo URL added and set as active avatar!');
     setActiveTab('gallery');
   };
 
   // Add preset photo to gallery
   const handleAddPreset = async (presetUrl: string) => {
-    const updatedGallery = userGallery.includes(presetUrl)
-      ? userGallery
-      : [presetUrl, ...userGallery];
+    const updatedGallery = [presetUrl, ...userGallery.filter((url) => url !== presetUrl)];
     await onUpdateGallery(adminUser.id, updatedGallery, presetUrl);
-    triggerToast('⭐ Preset photo added and set as avatar!');
+    triggerToast('⭐ Preset photo set as active avatar!');
     setActiveTab('gallery');
   };
 
@@ -303,6 +309,22 @@ export const AdminGalleryModal: React.FC<AdminGalleryModalProps> = ({
                 <Sparkles className="w-4 h-4 text-[#FEAE3A]" />
                 <span>Choose Preset</span>
               </button>
+
+              {currentAvatar && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const filtered = userGallery.filter((u) => u !== adminUser.profileImage);
+                    await onUpdateGallery(adminUser.id, filtered, '');
+                    triggerToast('🗑️ Profile picture removed, initials restored');
+                  }}
+                  className="inline-flex items-center justify-center gap-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-200 text-xs font-bold px-3 py-2.5 rounded-2xl border border-red-400/30 transition-all active:scale-95"
+                  title="Remove avatar and use name initials"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-red-300" />
+                  <span>Remove</span>
+                </button>
+              )}
             </div>
           </div>
 

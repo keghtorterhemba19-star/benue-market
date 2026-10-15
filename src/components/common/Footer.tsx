@@ -1,14 +1,14 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { MapPin, ShieldCheck, ArrowUpRight } from 'lucide-react';
+import { MapPin, ShieldCheck, ArrowUpRight, Scale, FileText } from 'lucide-react';
 import { PRODUCE_CATEGORIES } from '../../constants/benue';
 
 export const Footer: React.FC = () => {
   return (
     <footer className="bg-[#08291B] text-[#E5E7EB] pt-16 pb-8 border-t border-[#184E33]">
       <div className="max-w-7xl mx-auto px-4 md:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 pb-12 border-b border-[#184E33]">
-          {/* Brand Info */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-8 pb-12 border-b border-[#184E33]">
+          {/* Brand Info (2 cols) */}
           <div className="lg:col-span-2 space-y-4">
             <Link to="/" className="flex items-center gap-3 w-fit">
               <img
@@ -80,6 +80,42 @@ export const Footer: React.FC = () => {
             </ul>
           </div>
 
+          {/* Legal & Policy (Requirement 2) */}
+          <div className="space-y-3">
+            <h4 className="font-bold text-xs text-[#F59E0B] uppercase tracking-wider flex items-center gap-1.5">
+              <Scale className="w-3.5 h-3.5 text-[#10B981]" />
+              <span>Legal & Policies</span>
+            </h4>
+            <ul className="space-y-2 text-sm text-[#D1D5DB]">
+              <li>
+                <Link to="/terms" className="hover:text-white transition-colors flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5 text-[#10B981]" />
+                  <span>Terms & Conditions</span>
+                </Link>
+              </li>
+              <li>
+                <Link to="/terms?tab=privacy" className="hover:text-white transition-colors">
+                  Privacy Policy
+                </Link>
+              </li>
+              <li>
+                <Link to="/terms?tab=buyer" className="hover:text-white transition-colors">
+                  Buyer Terms & Standards
+                </Link>
+              </li>
+              <li>
+                <Link to="/terms?tab=farmer" className="hover:text-white transition-colors">
+                  Farmer / Seller Rules
+                </Link>
+              </li>
+              <li>
+                <Link to="/contact" className="hover:text-white transition-colors text-emerald-300 font-semibold">
+                  Contact Us & Support
+                </Link>
+              </li>
+            </ul>
+          </div>
+
           {/* Key Agricultural Hubs */}
           <div className="space-y-3">
             <h4 className="font-bold text-xs text-[#F59E0B] uppercase tracking-wider">
@@ -110,12 +146,17 @@ export const Footer: React.FC = () => {
           </div>
         </div>
 
-        {/* Bottom Bar */}
+        {/* Bottom Bar with Permanent Legal Links */}
         <div className="pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-[#9CA3AF]">
           <p>© {new Date().getFullYear()} Benue Market. Built for Benue State Agriculture.</p>
-          <div className="flex items-center gap-6">
-            <Link to="/about" className="hover:text-white transition-colors">About</Link>
-            <Link to="/contact" className="hover:text-white transition-colors">Support</Link>
+          <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
+            <Link to="/terms" className="hover:text-white transition-colors font-medium">Terms & Conditions</Link>
+            <Link to="/terms?tab=privacy" className="hover:text-white transition-colors font-medium">Privacy Policy</Link>
+            <Link to="/terms?tab=buyer" className="hover:text-white transition-colors font-medium">Buyer Terms</Link>
+            <Link to="/terms?tab=farmer" className="hover:text-white transition-colors font-medium">Farmer Terms</Link>
+            <Link to="/contact" className="hover:text-white transition-colors font-medium">Contact Us</Link>
+            <Link to="/support" className="hover:text-white transition-colors font-medium">Support</Link>
+            <Link to="/about" className="hover:text-white transition-colors font-medium">About</Link>
             <span className="text-[#F59E0B] font-semibold">Benue State, Nigeria 🇳🇬</span>
           </div>
         </div>

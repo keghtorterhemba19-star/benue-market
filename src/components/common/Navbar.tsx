@@ -19,12 +19,16 @@ import {
   Search,
   ChevronRight,
   Leaf,
-  Sparkles
+  Sparkles,
+  HelpCircle,
+  Headphones,
 } from 'lucide-react';
 import { BENUE_LGAS } from '../../constants/benue';
 import { useProducts } from '../../context/ProductContext';
 import { useAuth } from '../../context/AuthContext';
-import type { BenueLGA } from '../../types';
+import { NavbarSupportMenu } from './NavbarSupportMenu';
+import { SupportTicketModal } from './SupportTicketModal';
+import type { BenueLGA, TicketTopic } from '../../types';
 
 export const Navbar: React.FC = () => {
   const location = useLocation();
@@ -33,7 +37,16 @@ export const Navbar: React.FC = () => {
   const { currentUser, isAuthenticated, logout, isSuperAdmin, isAdmin } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [isSupportTicketModalOpen, setIsSupportTicketModalOpen] = useState(false);
+  const [supportModalTopic, setSupportModalTopic] = useState<TicketTopic>('general_inquiry');
+  const [supportModalSubject, setSupportModalSubject] = useState<string>('');
   const dropdownRef = useRef<HTMLDivElement | null>(null);
+
+  const handleOpenTicketModal = (topic: TicketTopic = 'general_inquiry', defaultSubject: string = '') => {
+    setSupportModalTopic(topic);
+    setSupportModalSubject(defaultSubject);
+    setIsSupportTicketModalOpen(true);
+  };
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -89,7 +102,7 @@ export const Navbar: React.FC = () => {
     { path: '/directory', label: 'Farmers Directory', icon: Users, description: 'Connect with farmers' },
     { path: '/sell-produce', label: 'List Produce', icon: PlusCircle, description: 'Sell your harvest', accent: true },
     { path: '/about', label: 'About', icon: Info, description: 'Our mission' },
-    { path: '/contact', label: 'Contact', icon: PhoneCall, description: 'Get support' },
+    { path: '/contact', label: 'Support & Contact', icon: Headphones, description: 'Benue Market Help Desk' },
   ];
 
   // Bottom tab items for mobile
@@ -178,12 +191,26 @@ export const Navbar: React.FC = () => {
               <Link to="/browse" className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${isActive('/browse') ? 'bg-[#0F5132] text-white shadow-sm' : 'text-[#374151] hover:text-[#111827] hover:bg-[#E8F5E9]'}`}>Browse Produce</Link>
               <Link to="/directory" className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${isActive('/directory') ? 'bg-[#0F5132] text-white shadow-sm' : 'text-[#374151] hover:text-[#111827] hover:bg-[#E8F5E9]'}`}>Farmers Directory</Link>
               <Link to="/about" className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${isActive('/about') ? 'bg-[#0F5132] text-white shadow-sm' : 'text-[#374151] hover:text-[#111827] hover:bg-[#E8F5E9]'}`}>About</Link>
-              <Link to="/contact" className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${isActive('/contact') ? 'bg-[#0F5132] text-white shadow-sm' : 'text-[#374151] hover:text-[#111827] hover:bg-[#E8F5E9]'}`}>Contact</Link>
+              
+              {/* Ultra-Modern Interactive Support Hub Menu */}
+              <NavbarSupportMenu onOpenTicketModal={handleOpenTicketModal} />
             </nav>
           </div>
 
           {/* Right Desktop & Mobile Actions */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-2.5">
+            {/* Quick Support Button (Mobile & Tablet) */}
+            <button
+              type="button"
+              onClick={() => handleOpenTicketModal('general_inquiry', 'Quick Help from Navbar')}
+              className="lg:hidden relative p-2 text-[#374151] hover:text-[#0F5132] hover:bg-[#E8F5E9] rounded-xl border border-transparent hover:border-[#C8E6C9] transition-all flex items-center justify-center shrink-0"
+              title="Benue Market Support Hub"
+              aria-label="Support Desk"
+            >
+              <Headphones className="w-5 h-5 text-[#0F5132]" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white animate-pulse" />
+            </button>
+
             {/* Saved Items Heart */}
             <Link to="/buyer-dashboard" className="relative p-2 text-[#374151] hover:text-[#0F5132] hover:bg-[#E8F5E9] rounded-lg transition-colors flex items-center justify-center shrink-0" title="Saved Products">
               <Heart className="w-5 h-5 text-[#B45309]" />
@@ -262,6 +289,10 @@ export const Navbar: React.FC = () => {
                       <Link to="/sell-produce" onClick={() => setUserDropdownOpen(false)} className="flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-[#4B5563] hover:bg-[#FAF8F5] transition-colors">
                         <PlusCircle className="w-4 h-4 text-[#0F5132]" />
                         <span>List Produce Harvest</span>
+                      </Link>
+                      <Link to="/contact" onClick={() => setUserDropdownOpen(false)} className="flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-[#4B5563] hover:bg-[#FAF8F5] transition-colors">
+                        <HelpCircle className="w-4 h-4 text-[#FEAE3A]" />
+                        <span>Help Desk & Support</span>
                       </Link>
                     </div>
                     <div className="p-2 border-t border-[#E8E2D9]">
@@ -388,6 +419,15 @@ export const Navbar: React.FC = () => {
                     </Link>
                   );
                 })}
+              </div>
+
+              {/* Mobile Support & Contact Hub */}
+              <div className="mt-4">
+                <NavbarSupportMenu
+                  isMobileDrawer={true}
+                  onOpenTicketModal={handleOpenTicketModal}
+                  onCloseMobileDrawer={closeMobileMenu}
+                />
               </div>
 
               {/* User Profile Card */}
@@ -521,6 +561,14 @@ export const Navbar: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Global Interactive Support Ticket Modal */}
+      <SupportTicketModal
+        isOpen={isSupportTicketModalOpen}
+        onClose={() => setIsSupportTicketModalOpen(false)}
+        defaultTopic={supportModalTopic}
+        defaultSubject={supportModalSubject}
+      />
     </>
   );
 };

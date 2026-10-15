@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { PlusCircle, ShieldCheck, LogOut, Camera, Upload, Trash2, CheckCircle2, Edit3, Star, Megaphone, Clock } from 'lucide-react';
+import { PlusCircle, ShieldCheck, LogOut, Camera, Upload, Trash2, CheckCircle2, Edit3, Star, Megaphone, Clock, HelpCircle, Zap, Crown, Scale } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useProducts } from '../context/ProductContext';
 import { formatNaira } from '../utils/formatters';
@@ -8,6 +8,7 @@ import { DeleteConfirmModal } from '../components/common/DeleteConfirmModal';
 import { EditProductModal } from '../components/marketplace/EditProductModal';
 import { ProfileCoverEditModal } from '../components/farmer/ProfileCoverEditModal';
 import { AdvertiseProductModal } from '../components/marketplace/AdvertiseProductModal';
+import { SupportTicketModal } from '../components/common/SupportTicketModal';
 import type { Product } from '../types';
 import type { Advertisement } from '../types/advertisement';
 import { fetchVendorAdvertisements } from '../services/advertisingService';
@@ -20,6 +21,7 @@ export const FarmerDashboard: React.FC = () => {
   const [productToEdit, setProductToEdit] = useState<Product | null>(null);
   const [productToAdvertise, setProductToAdvertise] = useState<Product | null>(null);
   const [isCoverModalOpen, setIsCoverModalOpen] = useState<boolean>(false);
+  const [isSupportModalOpen, setIsSupportModalOpen] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [vendorAds, setVendorAds] = useState<Advertisement[]>([]);
 
@@ -213,7 +215,17 @@ export const FarmerDashboard: React.FC = () => {
             </div>
 
             {/* Quick Actions */}
-            <div className="flex items-center gap-3 shrink-0 pt-2 md:pt-0">
+            <div className="flex items-center gap-2.5 shrink-0 pt-2 md:pt-0">
+              <button
+                type="button"
+                onClick={() => setIsSupportModalOpen(true)}
+                className="inline-flex items-center gap-1.5 bg-emerald-50 text-[#0F5132] border border-[#C8E6C9] hover:bg-emerald-100 text-xs sm:text-sm font-bold px-3.5 py-3 rounded-xl shadow-xs transition-colors"
+                title="Contact platform support & Help Desk"
+              >
+                <HelpCircle className="w-4 h-4 text-[#FEAE3A]" />
+                <span>Help Desk</span>
+              </button>
+
               <Link
                 to="/sell-produce"
                 className="inline-flex items-center gap-2 bg-[#0F5132] hover:bg-[#0B3D26] text-white text-xs sm:text-sm font-bold px-4 sm:px-5 py-3 rounded-xl shadow-md transition-all active:scale-95"
@@ -242,12 +254,12 @@ export const FarmerDashboard: React.FC = () => {
           </div>
 
           <div className="bg-white p-5 rounded-2xl border border-amber-200 shadow-sm space-y-1 bg-gradient-to-br from-amber-50/30 to-white">
-            <span className="text-xs font-semibold text-[#4B5563]">Active Advertisements</span>
+            <span className="text-xs font-semibold text-[#4B5563]">Product Subscriptions</span>
             <div className="font-extrabold text-3xl text-[#B45309] flex items-center gap-2">
               <Megaphone className="w-6 h-6 text-[#F59E0B]" />
               <span>{activeVendorAds.length}</span>
             </div>
-            <p className="text-[11px] text-[#B45309] font-medium">Promoted in Sponsored Harvests</p>
+            <p className="text-[11px] text-[#B45309] font-medium">Starter (₦2k) & Growth (₦5k)</p>
           </div>
 
           <div className="bg-white p-5 rounded-2xl border border-[#E8E2D9] shadow-sm space-y-1">
@@ -320,7 +332,7 @@ export const FarmerDashboard: React.FC = () => {
                     <th className="p-3">Category</th>
                     <th className="p-3">Price / Unit</th>
                     <th className="p-3">Available</th>
-                    <th className="p-3">Ad Status</th>
+                    <th className="p-3">Subscription Plan</th>
                     <th className="p-3">Location & LGA</th>
                     <th className="p-3 text-right">Actions</th>
                   </tr>
@@ -332,6 +344,7 @@ export const FarmerDashboard: React.FC = () => {
                       ? Math.max(0, Math.ceil((new Date(ad.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
                       : 0;
                     const isAdActive = ad?.advertisementStatus === 'active';
+                    const isGrowth = ad?.plan === 'growth' || ad?.amount === 5000;
 
                     return (
                       <tr key={item.id} className="hover:bg-[#FBF9F6]">
@@ -345,12 +358,16 @@ export const FarmerDashboard: React.FC = () => {
                         <td className="p-3 font-bold text-[#0F5132]">{formatNaira(item.price)} / {item.unit}</td>
                         <td className="p-3 text-[#4B5563]">{item.quantity} units</td>
                         
-                        {/* Ad Status & Expiration Days Badge */}
+                        {/* Subscription Status & Expiration Days Badge */}
                         <td className="p-3">
                           {isAdActive ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200">
-                              <Megaphone className="w-3 h-3 text-emerald-600" />
-                              <span>Active ({remainingDays}d left)</span>
+                            <span className={`inline-flex items-center gap-1.5 text-[10px] font-black px-2.5 py-1 rounded-lg border ${
+                              isGrowth
+                                ? 'bg-amber-50 text-[#92400E] border-amber-300'
+                                : 'bg-emerald-50 text-[#0F5132] border-emerald-200'
+                            }`}>
+                              {isGrowth ? <Crown className="w-3 h-3 text-[#B45309]" /> : <Zap className="w-3 h-3 text-[#0F5132]" />}
+                              <span>{isGrowth ? 'Growth VIP' : 'Starter'} ({remainingDays}d)</span>
                             </span>
                           ) : ad && ad.advertisementStatus === 'pending' ? (
                             <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2.5 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-200">
@@ -359,7 +376,7 @@ export const FarmerDashboard: React.FC = () => {
                             </span>
                           ) : ad && ad.advertisementStatus === 'expired' ? (
                             <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2.5 py-1 rounded-lg bg-gray-100 text-gray-600 border border-gray-200">
-                              <span>Expired Ad</span>
+                              <span>Expired Plan</span>
                             </span>
                           ) : (
                             <span className="text-[11px] text-gray-400 font-medium">Standard Listing</span>
@@ -383,10 +400,10 @@ export const FarmerDashboard: React.FC = () => {
                                   ? 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200'
                                   : 'text-[#B45309] hover:text-[#92400E] bg-amber-50 hover:bg-amber-100 border-amber-200'
                               }`}
-                              title={isAdActive ? 'Ad is active - click to manage or extend' : 'Advertise this product'}
+                              title={isAdActive ? 'Subscription is active - click to manage plan' : 'Subscribe to boost produce'}
                             >
-                              <Megaphone className="w-3.5 h-3.5" />
-                              <span>{isAdActive ? 'Promoted' : 'Advertise'}</span>
+                              {isGrowth ? <Crown className="w-3.5 h-3.5 text-[#B45309]" /> : <Zap className="w-3.5 h-3.5" />}
+                              <span>{isAdActive ? 'Subscribed' : 'Subscription'}</span>
                             </button>
                             <button
                               type="button"
@@ -420,7 +437,111 @@ export const FarmerDashboard: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* Farmer Legal & Seller Compliance Banner */}
+        <div className="bg-white p-6 rounded-2xl border border-[#E8E2D9] shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-[#0F5132] flex items-center justify-center shrink-0 border border-emerald-200">
+              <Scale className="w-5 h-5 text-[#0F5132]" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <h4 className="font-extrabold text-sm text-[#111827]">Farmer & Seller Compliance Guidelines</h4>
+                <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                  <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                  <span>Terms v{currentUser?.termsAcceptedVersion || '1.0.0'} Active</span>
+                </span>
+              </div>
+              <p className="text-xs text-[#4B5563]">
+                Truthful harvest pricing, authentic Benue LGA locations, 0% sales commission, and ₦2,000 Starter / ₦5,000 Growth promotional rules.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0 pt-2 sm:pt-0">
+            <Link
+              to="/terms?tab=farmer"
+              className="text-xs font-bold text-[#0F5132] hover:bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 transition-colors"
+            >
+              Seller Rules
+            </Link>
+            <Link
+              to="/terms?tab=promotion"
+              className="text-xs font-bold text-[#B45309] hover:bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-200 transition-colors"
+            >
+              Promotion Policy
+            </Link>
+            <Link
+              to="/terms"
+              className="text-xs font-bold text-[#111827] hover:bg-gray-100 px-3 py-1.5 rounded-xl border border-[#D6CDC0] transition-colors"
+            >
+              Full Terms
+            </Link>
+          </div>
+        </div>
       </div>
+
+      {/* ── MODALS CONTAINER ── */}
+      {productToAdvertise && (
+        <AdvertiseProductModal
+          isOpen={Boolean(productToAdvertise)}
+          onClose={() => setProductToAdvertise(null)}
+          product={productToAdvertise}
+          vendorId={currentUser?.id || 'farmer-1'}
+          vendorEmail={currentUser?.email || 'farmer@benuemarket.ng'}
+          onSuccess={() => {
+            loadVendorAds();
+            setProductToAdvertise(null);
+            setToastMessage('✅ Produce subscription plan activated successfully!');
+            setTimeout(() => setToastMessage(null), 4000);
+          }}
+        />
+      )}
+
+      {productToEdit && (
+        <EditProductModal
+          isOpen={Boolean(productToEdit)}
+          onClose={() => setProductToEdit(null)}
+          product={productToEdit}
+          onSuccess={() => {
+            setProductToEdit(null);
+            setToastMessage('✅ Produce listing updated successfully!');
+            setTimeout(() => setToastMessage(null), 4000);
+          }}
+        />
+      )}
+
+      {productToDelete && (
+        <DeleteConfirmModal
+          isOpen={Boolean(productToDelete)}
+          onClose={() => setProductToDelete(null)}
+          onConfirm={() => {
+            handleConfirmDelete(productToDelete.id);
+            setProductToDelete(null);
+          }}
+          title="Delete Produce Listing"
+          message={`Are you sure you want to delete "${productToDelete.name}" from your active marketplace catalog? This action cannot be undone.`}
+        />
+      )}
+
+      {currentUser && (
+        <ProfileCoverEditModal
+          isOpen={isCoverModalOpen}
+          onClose={() => setIsCoverModalOpen(false)}
+          currentUser={currentUser}
+          onSaveProfileImage={updateProfileImage}
+          onSaveCoverImage={updateCoverImage}
+          onSaveProfileDetails={updateUserProfile}
+          onSellerInfoUpdated={updateSellerInfoInProducts}
+        />
+      )}
+
+      <SupportTicketModal
+        isOpen={isSupportModalOpen}
+        onClose={() => setIsSupportModalOpen(false)}
+        defaultTopic="subscription_plans"
+        defaultSubject="Inquiry regarding Produce Subscription Plans (Starter / Growth)"
+      />
     </div>
   );
 };

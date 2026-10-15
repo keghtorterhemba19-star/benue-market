@@ -16,6 +16,8 @@ interface SupabaseProfileRow {
   lga: string | null;
   is_verified: boolean | null;
   completed_trades_count: number | null;
+  terms_accepted_version?: string | null;
+  terms_accepted_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -36,16 +38,22 @@ export const mapSupabaseRowToUser = (row: SupabaseProfileRow): User => {
     lga: (row.lga as BenueLGA) || 'Makurdi',
     isVerified: Boolean(row.is_verified),
     completedTradesCount: row.completed_trades_count || 0,
+    termsAcceptedVersion: row.terms_accepted_version || undefined,
+    termsAcceptedAt: row.terms_accepted_at || undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+};
+
+const isValidUUID = (id: string): boolean => {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 };
 
 /**
  * Fetches user profile from public.profiles
  */
 export const fetchProfileFromSupabase = async (userId: string): Promise<User | null> => {
-  if (!isSupabaseConfigured()) return null;
+  if (!isSupabaseConfigured() || !isValidUUID(userId)) return null;
 
   try {
     const { data, error } = await supabase
@@ -75,6 +83,18 @@ export const updateProfileInSupabase = async (
   if (!isSupabaseConfigured()) return null;
 
   try {
+    let targetId = userId;
+    if (!isValidUUID(targetId)) {
+      // Check if there is an active authenticated session
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData?.session?.user?.id && isValidUUID(sessionData.session.user.id)) {
+        targetId = sessionData.session.user.id;
+      } else {
+        // Mock / local demo user without a Supabase auth record
+        return null;
+      }
+    }
+
     const payload: Partial<SupabaseProfileRow> = {};
     if (updates.name !== undefined) payload.name = updates.name;
     if (updates.phone !== undefined) payload.phone = updates.phone;
@@ -86,11 +106,14 @@ export const updateProfileInSupabase = async (
     if (updates.lga !== undefined) payload.lga = updates.lga;
     if (updates.role !== undefined) payload.role = updates.role;
     if (updates.userType !== undefined) payload.user_type = updates.userType;
+    if (updates.termsAcceptedVersion !== undefined) payload.terms_accepted_version = updates.termsAcceptedVersion;
+    if (updates.termsAcceptedAt !== undefined) payload.terms_accepted_at = updates.termsAcceptedAt;
+    payload.updated_at = new Date().toISOString();
 
     const { data, error } = await supabase
       .from('profiles')
       .update(payload)
-      .eq('id', userId)
+      .eq('id', targetId)
       .select()
       .single();
 
@@ -130,6 +153,8 @@ export const upsertProfileInSupabase = async (
       location: user.location || null,
       lga: user.lga || 'Makurdi',
       is_verified: user.isVerified ?? (user.role === 'seller' || user.role === 'super_admin'),
+      terms_accepted_version: user.termsAcceptedVersion || '1.0.0',
+      terms_accepted_at: user.termsAcceptedAt || new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
 

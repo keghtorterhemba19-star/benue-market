@@ -79,7 +79,7 @@ export const SellProduce: React.FC = () => {
             </Link>
 
             <Link
-              to="/register"
+              to="/register?role=farmer"
               className="w-full inline-flex items-center justify-center gap-2 bg-[#F9FAFB] hover:bg-[#F3F4F6] text-[#374151] text-xs font-bold py-3 px-4 rounded-xl border border-[#D6CDC0] transition-colors"
             >
               <span>Create Free Farmer Account</span>

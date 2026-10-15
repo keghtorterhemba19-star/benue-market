@@ -161,6 +161,8 @@ export interface User {
   averageRating?: number;
   reviewCount?: number;
   joinedDate?: string;
+  termsAcceptedVersion?: string;
+  termsAcceptedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -185,4 +187,7 @@ export interface ProductFilter {
   sortBy: 'recent' | 'price_low' | 'price_high' | 'popular';
   availabilityOnly: boolean;
 }
+
+export * from './support';
+
 

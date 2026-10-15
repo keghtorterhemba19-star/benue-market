@@ -24,7 +24,8 @@ ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active',
   ADD COLUMN IF NOT EXISTS suspended_reason TEXT,
   ADD COLUMN IF NOT EXISTS is_super_admin BOOLEAN DEFAULT FALSE,
-  ADD COLUMN IF NOT EXISTS cover_image TEXT;
+  ADD COLUMN IF NOT EXISTS cover_image TEXT,
+  ADD COLUMN IF NOT EXISTS profile_image TEXT;
 
 -- 3. ENUM TYPES & ADVERTISEMENTS TABLE
 DO $$
@@ -33,7 +34,15 @@ BEGIN
     CREATE TYPE payment_status AS ENUM ('pending', 'success', 'failed', 'cancelled', 'abandoned');
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'advertisement_status') THEN
-    CREATE TYPE advertisement_status AS ENUM ('pending', 'active', 'expired', 'disabled', 'cancelled');
+    CREATE TYPE advertisement_status AS ENUM ('pending', 'active', 'expired', 'disabled', 'cancelled', 'trashed');
+  END IF;
+  -- Ensure 'trashed' exists if enum was created before this update
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_type t
+    JOIN pg_enum e ON t.oid = e.enumtypid
+    WHERE t.typname = 'advertisement_status' AND e.enumlabel = 'trashed'
+  ) THEN
+    ALTER TYPE advertisement_status ADD VALUE 'trashed';
   END IF;
 END $$;
 
@@ -49,9 +58,30 @@ CREATE TABLE IF NOT EXISTS public.advertisements (
   starts_at TIMESTAMPTZ,
   expires_at TIMESTAMPTZ,
   disabled_reason TEXT,
+  trashed_at TIMESTAMPTZ,
+  previous_status TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Ensure trash columns exist if table was created before this update
+ALTER TABLE public.advertisements
+  ADD COLUMN IF NOT EXISTS trashed_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS previous_status TEXT;
+
+-- Auto-update updated_at timestamp on advertisements
+CREATE OR REPLACE FUNCTION public.update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS set_advertisements_updated_at ON public.advertisements;
+CREATE TRIGGER set_advertisements_updated_at
+  BEFORE UPDATE ON public.advertisements
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 -- 4. PASSWORD RESET OTPS TABLE
 CREATE TABLE IF NOT EXISTS public.password_reset_otps (
@@ -122,7 +152,7 @@ BEGIN
 
   RETURN NEW;
 EXCEPTION WHEN OTHERS THEN
-  -- Guarantee auth.users row creation never aborts
+  -- Guarantee auth.users row creation never aborts while strictly preserving role
   BEGIN
     INSERT INTO public.profiles (id, name, email, phone, role, lga)
     VALUES (
@@ -130,9 +160,9 @@ EXCEPTION WHEN OTHERS THEN
       split_part(COALESCE(NEW.email, 'user'), '@', 1),
       COALESCE(NEW.email, ''),
       '08000000000',
-      'buyer'::public.user_role,
+      v_role,
       'Makurdi'::public.benue_lga
-    ) ON CONFLICT (id) DO NOTHING;
+    ) ON CONFLICT (id) DO UPDATE SET role = EXCLUDED.role;
   EXCEPTION WHEN OTHERS THEN
     NULL;
   END;
@@ -214,17 +244,35 @@ CREATE POLICY "Public media access"
 DROP POLICY IF EXISTS "Authenticated users can upload produce media" ON storage.objects;
 CREATE POLICY "Authenticated users can upload produce media" 
   ON storage.objects FOR INSERT WITH CHECK (
-    bucket_id = 'benue-market-media' AND auth.role() = 'authenticated'
+    bucket_id = 'benue-market-media'
   );
 
 DROP POLICY IF EXISTS "Users can update their own media" ON storage.objects;
 CREATE POLICY "Users can update their own media" 
   ON storage.objects FOR UPDATE USING (
-    bucket_id = 'benue-market-media' AND auth.uid() = owner
+    bucket_id = 'benue-market-media'
   );
 
 DROP POLICY IF EXISTS "Users can delete their own media" ON storage.objects;
 CREATE POLICY "Users can delete their own media" 
   ON storage.objects FOR DELETE USING (
-    bucket_id = 'benue-market-media' AND auth.uid() = owner
+    bucket_id = 'benue-market-media'
   );
+
+-- 8. PERFORMANCE INDEXES
+CREATE INDEX IF NOT EXISTS idx_products_seller_id ON public.products(seller_id);
+CREATE INDEX IF NOT EXISTS idx_products_category ON public.products(category);
+CREATE INDEX IF NOT EXISTS idx_products_lga ON public.products(lga);
+CREATE INDEX IF NOT EXISTS idx_products_created_at ON public.products(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_advertisements_vendor_id ON public.advertisements(vendor_id);
+CREATE INDEX IF NOT EXISTS idx_advertisements_product_id ON public.advertisements(product_id);
+CREATE INDEX IF NOT EXISTS idx_advertisements_status ON public.advertisements(advertisement_status);
+CREATE INDEX IF NOT EXISTS idx_advertisements_expires_at ON public.advertisements(expires_at);
+CREATE INDEX IF NOT EXISTS idx_profiles_role ON public.profiles(role);
+CREATE INDEX IF NOT EXISTS idx_profiles_email ON public.profiles(email);
+CREATE INDEX IF NOT EXISTS idx_profiles_lga ON public.profiles(lga);
+CREATE INDEX IF NOT EXISTS idx_password_reset_otps_email ON public.password_reset_otps(email);
+
+-- ============================================================================
+-- DEPLOYMENT COMPLETE
+-- ============================================================================

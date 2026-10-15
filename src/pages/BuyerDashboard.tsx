@@ -1,18 +1,20 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, Search, LogOut, Store, ArrowRight, MapPin, Eye, Settings, Flag } from 'lucide-react';
+import { Heart, Search, LogOut, Store, ArrowRight, MapPin, Eye, Settings, Flag, Camera, HelpCircle, Scale, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useProducts } from '../context/ProductContext';
 import { ProductCard } from '../components/marketplace/ProductCard';
 import { PRODUCE_CATEGORIES } from '../constants/benue';
 import { ProfileCoverEditModal } from '../components/farmer/ProfileCoverEditModal';
 import { ReportModal } from '../components/common/ReportModal';
+import { SupportTicketModal } from '../components/common/SupportTicketModal';
 
 export const BuyerDashboard: React.FC = () => {
   const { currentUser, logout, switchRole, updateCoverImage, updateProfileImage } = useAuth();
   const { savedProductIds, products, recentlyViewedProducts } = useProducts();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isSupportModalOpen, setIsSupportModalOpen] = useState(false);
 
   const savedProducts = products.filter((p) => savedProductIds.includes(p.id));
 
@@ -37,16 +39,36 @@ export const BuyerDashboard: React.FC = () => {
         targetName="Marketplace Seller / Produce Listing"
       />
 
+      {/* Support & Help Desk Ticket Modal */}
+      <SupportTicketModal
+        isOpen={isSupportModalOpen}
+        onClose={() => setIsSupportModalOpen(false)}
+        defaultTopic="buyer_orders_logistics"
+        defaultSubject="Inquiry regarding Produce Order & Logistics"
+      />
+
       <div className="max-w-7xl mx-auto px-4 md:px-8 space-y-8">
         {/* Buyer Header Banner */}
         <div className="bg-white p-6 md:p-8 rounded-2xl border border-[#E8E2D9] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-full bg-[#0F5132] text-white flex items-center justify-center font-extrabold text-xl ring-2 ring-[#C8E6C9] shrink-0 overflow-hidden">
-              {currentUser?.profileImage ? (
-                <img src={currentUser.profileImage} alt={currentUser.name} className="w-full h-full object-cover" />
-              ) : (
-                currentUser?.name?.charAt(0) || 'B'
-              )}
+            <div
+              onClick={() => setIsEditModalOpen(true)}
+              className="relative group cursor-pointer shrink-0"
+              title="Click to change profile picture"
+            >
+              <div className="w-16 h-16 rounded-full bg-[#0F5132] text-white flex items-center justify-center font-extrabold text-2xl ring-4 ring-[#C8E6C9] overflow-hidden">
+                {currentUser?.profileImage ? (
+                  <img src={currentUser.profileImage} alt={currentUser.name} className="w-full h-full object-cover" />
+                ) : (
+                  currentUser?.name?.charAt(0) || 'B'
+                )}
+              </div>
+              <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white">
+                <Camera className="w-5 h-5" />
+              </div>
+              <div className="absolute -bottom-1 -right-1 bg-[#B45309] text-white p-1 rounded-full shadow-md border-2 border-white">
+                <Camera className="w-3 h-3" />
+              </div>
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -78,6 +100,15 @@ export const BuyerDashboard: React.FC = () => {
             >
               <Flag className="w-4 h-4 text-red-600" />
               <span>Report Seller or Produce</span>
+            </button>
+
+            <button
+              onClick={() => setIsSupportModalOpen(true)}
+              className="inline-flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-[#0F5132] border border-[#C8E6C9] text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs transition-colors"
+              title="Contact Benue Market Support & Help Desk"
+            >
+              <HelpCircle className="w-4 h-4 text-[#FEAE3A]" />
+              <span>Help & Inquiries</span>
             </button>
 
             <Link
@@ -203,6 +234,48 @@ export const BuyerDashboard: React.FC = () => {
                 <span className="text-[10px] text-[#6B7280] block">Direct farm supply</span>
               </Link>
             ))}
+          </div>
+        </div>
+
+        {/* Legal & Buyer Compliance Card */}
+        <div className="bg-white p-6 rounded-2xl border border-[#E8E2D9] shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-[#0F5132] flex items-center justify-center shrink-0 border border-emerald-200">
+              <Scale className="w-5 h-5 text-[#0F5132]" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <h4 className="font-extrabold text-sm text-[#111827]">Legal & Buyer Trade Standards</h4>
+                <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                  <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                  <span>Terms v{currentUser?.termsAcceptedVersion || '1.0.0'} Accepted</span>
+                </span>
+              </div>
+              <p className="text-xs text-[#4B5563]">
+                Review direct trade rules, offline pickup safety guidelines, and buyer code of conduct across Benue markets.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0 pt-2 sm:pt-0">
+            <Link
+              to="/terms?tab=buyer"
+              className="text-xs font-bold text-[#0F5132] hover:bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 transition-colors"
+            >
+              Buyer Rules
+            </Link>
+            <Link
+              to="/terms"
+              className="text-xs font-bold text-[#111827] hover:bg-gray-100 px-3 py-1.5 rounded-xl border border-[#D6CDC0] transition-colors"
+            >
+              Full Terms
+            </Link>
+            <Link
+              to="/terms?tab=privacy"
+              className="text-xs font-bold text-[#4B5563] hover:text-[#111827] px-2 py-1.5 transition-colors"
+            >
+              Privacy Policy
+            </Link>
           </div>
         </div>
 

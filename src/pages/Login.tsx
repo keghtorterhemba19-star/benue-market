@@ -388,6 +388,18 @@ export const Login: React.FC = () => {
             Reset Password
           </button>
         </div>
+
+        <p className="text-[11px] text-center text-[#6B7280] pt-1">
+          By signing in, you agree to Benue Market's{' '}
+          <Link to="/terms" className="text-[#0F5132] underline font-semibold hover:text-[#0B3D26]">
+            Terms & Conditions
+          </Link>{' '}
+          and{' '}
+          <Link to="/terms?tab=privacy" className="text-[#0F5132] underline font-semibold hover:text-[#0B3D26]">
+            Privacy Policy
+          </Link>
+          .
+        </p>
       </div>
 
       {/* REQUIREMENT 1: Unregistered Email Popup Modal */}
@@ -412,7 +424,7 @@ export const Login: React.FC = () => {
               type="button"
               onClick={() => {
                 setUnregisteredModal({ isOpen: false, email: '' });
-                navigate(`/register?email=${encodeURIComponent(unregisteredModal.email)}&role=${role}`);
+                navigate(`/register?email=${encodeURIComponent(unregisteredModal.email)}&role=${role === 'seller' ? 'farmer' : 'buyer'}`);
               }}
               className="w-full bg-[#0F5132] hover:bg-[#0B3D26] text-white font-extrabold text-xs py-3.5 rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
             >

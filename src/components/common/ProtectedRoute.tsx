@@ -47,7 +47,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
             </Link>
 
             <Link
-              to="/register"
+              to="/register?role=farmer"
               className="w-full inline-flex items-center justify-center gap-2 bg-[#F9FAFB] hover:bg-[#F3F4F6] text-[#374151] text-xs font-bold py-3 px-4 rounded-xl border border-[#D6CDC0] transition-colors"
             >
               <span>Create Free Farmer Account</span>
@@ -95,7 +95,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
           <div className="space-y-3 pt-2">
             {/* SECURITY: Role upgrades must go through proper registration/verification, not client-side switch */}
             <Link
-              to="/register?upgrade=seller"
+              to="/register?role=farmer"
               className="w-full inline-flex items-center justify-center gap-2 bg-[#0F5132] hover:bg-[#0B3D26] text-white text-sm font-bold py-3.5 px-4 rounded-xl shadow-sm transition-all active:scale-[0.98]"
             >
               <Store className="w-4 h-4 text-[#FEF3C7]" />

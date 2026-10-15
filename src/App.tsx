@@ -18,6 +18,8 @@ import { ResetPassword } from './pages/ResetPassword';
 import { BuyerDashboard } from './pages/BuyerDashboard';
 import { FarmerDashboard } from './pages/FarmerDashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
+import { Terms } from './pages/Terms';
+import { TermsUpdateModal } from './components/common/TermsUpdateModal';
 import { ProtectedRoute } from './components/common/ProtectedRoute';
 
 // Helper component to reset scroll position on route change
@@ -35,6 +37,7 @@ export const App: React.FC = () => {
       <ProductProvider>
         <Router>
           <ScrollToTop />
+          <TermsUpdateModal />
           <div className="flex flex-col min-h-screen bg-[#FAF8F5]">
             <Navbar />
             <main className="flex-grow pt-[112px] sm:pt-[116px] md:pt-[120px] lg:pt-[104px] pb-20 lg:pb-0">
@@ -54,6 +57,9 @@ export const App: React.FC = () => {
                 />
                 <Route path="/about" element={<About />} />
                 <Route path="/contact" element={<Contact />} />
+                <Route path="/support" element={<Contact />} />
+                <Route path="/terms" element={<Terms />} />
+                <Route path="/privacy" element={<Terms />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/reset-password" element={<ResetPassword />} />

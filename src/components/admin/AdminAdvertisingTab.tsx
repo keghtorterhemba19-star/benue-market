@@ -284,7 +284,7 @@ export const AdminAdvertisingTab: React.FC<AdminAdvertisingTabProps> = ({
           }`}
         >
           <div className="flex items-center justify-between text-[#6B7280] mb-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider">Total Ads</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider">Total Subscriptions</span>
             <Megaphone className="w-4 h-4 text-[#0F5132]" />
           </div>
           <span className="text-2xl font-extrabold text-[#111827]">{stats.total}</span>
@@ -376,7 +376,7 @@ export const AdminAdvertisingTab: React.FC<AdminAdvertisingTabProps> = ({
             <TrendingUp className="w-5 h-5 text-[#F59E0B]" />
           </div>
           <div>
-            <h4 className="text-xs font-bold text-emerald-100 uppercase tracking-wider">Total Advertising Revenue Collected</h4>
+            <h4 className="text-xs font-bold text-emerald-100 uppercase tracking-wider">Total Product Subscription Revenue</h4>
             <p className="text-2xl font-black text-white">{formatNaira(stats.totalRevenue)}</p>
           </div>
         </div>
@@ -413,10 +413,10 @@ export const AdminAdvertisingTab: React.FC<AdminAdvertisingTabProps> = ({
             className="w-full sm:w-auto px-3 py-2 bg-[#FAF8F5] border border-[#D6CDC0] rounded-xl text-xs text-[#111827] focus:outline-none focus:border-[#0F5132] font-semibold"
           >
             <option value="all">Standard List (Active, Pending, Expired, Disabled, Failed)</option>
-            <option value="active">Active Ads ({stats.active})</option>
+            <option value="active">Active Subscriptions ({stats.active})</option>
             <option value="pending">Pending Payment ({stats.pending})</option>
-            <option value="expired">Expired Ads ({stats.expired})</option>
-            <option value="disabled">Disabled Ads</option>
+            <option value="expired">Expired Subscriptions ({stats.expired})</option>
+            <option value="disabled">Disabled Subscriptions</option>
             <option value="cancelled">Cancelled / Failed ({stats.failed})</option>
             <option value="trashed">🗑️ Trash Bin ({stats.trashed})</option>
           </select>
@@ -522,9 +522,9 @@ export const AdminAdvertisingTab: React.FC<AdminAdvertisingTabProps> = ({
                 <tr className="bg-[#E8F5E9] text-[#0F5132] font-bold border-b border-[#C8E6C9]">
                   <th className="p-3">Product</th>
                   <th className="p-3">Vendor</th>
-                  <th className="p-3">Amount</th>
+                  <th className="p-3">Amount & Plan</th>
                   <th className="p-3">Payment</th>
-                  <th className="p-3">{statusFilter === 'trashed' ? 'Original / Trash Status' : 'Ad Status'}</th>
+                  <th className="p-3">{statusFilter === 'trashed' ? 'Original / Trash Status' : 'Subscription Status'}</th>
                   <th className="p-3">Reference</th>
                   <th className="p-3">{statusFilter === 'trashed' ? 'Auto-Purge Countdown' : 'Duration'}</th>
                   <th className="p-3 text-right">Actions</th>
@@ -576,9 +576,18 @@ export const AdminAdvertisingTab: React.FC<AdminAdvertisingTabProps> = ({
                         </div>
                       </td>
 
-                      {/* Amount */}
-                      <td className="p-3 font-extrabold text-[#0F5132]">
-                        {formatNaira(ad.amount)}
+                      {/* Amount & Plan */}
+                      <td className="p-3">
+                        <span className="font-extrabold text-[#0F5132] block">
+                          {formatNaira(ad.amount)}
+                        </span>
+                        <span className={`inline-block text-[9px] font-black uppercase px-1.5 py-0.2 rounded-xs mt-0.5 ${
+                          ad.plan === 'growth' || ad.amount === 5000
+                            ? 'bg-amber-100 text-[#92400E] border border-amber-300'
+                            : 'bg-emerald-100 text-[#0F5132] border border-emerald-200'
+                        }`}>
+                          {ad.plan === 'growth' || ad.amount === 5000 ? '★ Growth VIP' : 'Starter'}
+                        </span>
                       </td>
 
                       {/* Payment Status */}

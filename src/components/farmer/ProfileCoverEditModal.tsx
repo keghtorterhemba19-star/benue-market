@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Upload, Camera, Image, Sparkles, Check, RefreshCw, ZoomIn, Sliders, ShieldCheck, MapPin, UserCheck, FileText, Phone, Building, KeyRound, Clock, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { X, Upload, Camera, Image, Sparkles, Check, RefreshCw, ZoomIn, Sliders, ShieldCheck, MapPin, UserCheck, FileText, Phone, Building, KeyRound, Clock, AlertTriangle, CheckCircle2, Loader2, Trash2 } from 'lucide-react';
 import type { User, BenueLGA, SellerAvailability } from '../../types';
 import { BENUE_LGAS } from '../../constants/benue';
 import { useAuth } from '../../context/AuthContext';
@@ -76,6 +76,11 @@ export const ProfileCoverEditModal: React.FC<ProfileCoverEditModalProps> = ({
   const [selectedAvatar, setSelectedAvatar] = useState<string>(
     currentUser?.profileImage || ''
   );
+  const [isUploadingCover, setIsUploadingCover] = useState<boolean>(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState<boolean>(false);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [uploadToast, setUploadToast] = useState<string | null>(null);
+
   const [zoomLevel, setZoomLevel] = useState<number>(100);
   const [selectedFilter, setSelectedFilter] = useState<string>('none');
   const [objectPosition, setObjectPosition] = useState<string>('center');
@@ -115,35 +120,61 @@ export const ProfileCoverEditModal: React.FC<ProfileCoverEditModalProps> = ({
 
   if (!isOpen) return null;
 
+  const showUploadFeedback = (msg: string) => {
+    setUploadToast(msg);
+    setTimeout(() => setUploadToast(null), 3500);
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'cover' | 'avatar') => {
     const file = e.target.files?.[0];
-    if (file) {
-      try {
-        const folder = type === 'avatar' ? 'avatars' : 'covers';
-        const result = await uploadMediaToSupabaseBucket(file, folder);
+    // Reset input value so re-selecting the same or new file always fires
+    if (e.target) {
+      e.target.value = '';
+    }
+    if (!file) return;
 
-        if (result.url) {
-          if (type === 'cover') {
-            setSelectedCover(result.url);
-          } else {
-            setSelectedAvatar(result.url);
-          }
+    if (type === 'cover') {
+      setIsUploadingCover(true);
+    } else {
+      setIsUploadingAvatar(true);
+    }
+
+    try {
+      const folder = type === 'avatar' ? 'avatars' : 'covers';
+      const result = await uploadMediaToSupabaseBucket(file, folder);
+
+      if (result.url) {
+        if (type === 'cover') {
+          setSelectedCover(result.url);
+          showUploadFeedback('✅ New cover banner uploaded and ready!');
         } else {
-          // Fallback compression if unconfigured/offline
-          const compressedDataUrl = await compressImageFile(
-            file,
-            type === 'avatar' ? 400 : 1200,
-            type === 'avatar' ? 400 : 800,
-            0.8
-          );
-          if (type === 'cover') {
-            setSelectedCover(compressedDataUrl);
-          } else {
-            setSelectedAvatar(compressedDataUrl);
-          }
+          setSelectedAvatar(result.url);
+          showUploadFeedback('✅ New profile avatar uploaded and ready!');
         }
-      } catch (err) {
-        console.error('Failed to upload image to Supabase storage:', err);
+      } else {
+        // High-efficiency WebP/JPEG fallback (never exceeds localStorage quota)
+        const compressedDataUrl = await compressImageFile(
+          file,
+          type === 'avatar' ? 400 : 1200,
+          type === 'avatar' ? 400 : 700,
+          0.8
+        );
+        if (type === 'cover') {
+          setSelectedCover(compressedDataUrl);
+          showUploadFeedback('✅ New cover banner processed and ready!');
+        } else {
+          setSelectedAvatar(compressedDataUrl);
+          showUploadFeedback('✅ New profile avatar processed and ready!');
+        }
+      }
+    } catch (err) {
+      console.error('Failed to process image upload:', err);
+      showUploadFeedback('⚠️ Could not process image. Please try another file.');
+    } finally {
+      if (type === 'cover') {
+        setIsUploadingCover(false);
+      } else {
+        setIsUploadingAvatar(false);
       }
     }
   };
@@ -173,38 +204,43 @@ export const ProfileCoverEditModal: React.FC<ProfileCoverEditModalProps> = ({
     }
   };
 
-  const handleSaveAll = () => {
-    if (currentUser?.id) {
-      updateUserProfile(currentUser.id, {
-        coverImage: selectedCover,
-        profileImage: selectedAvatar,
-        ...(isBuyerMode
-          ? {}
-          : {
-              name: formName,
-              phone: formPhone,
-              whatsapp: formWhatsapp,
-              lga: formLga,
-              location: formLocation,
-              bio: formBio,
-              availabilityStatus: formAvailability,
-            }),
-      });
+  const handleSaveAll = async () => {
+    setIsSaving(true);
+    try {
+      if (currentUser?.id) {
+        await updateUserProfile(currentUser.id, {
+          coverImage: selectedCover,
+          profileImage: selectedAvatar,
+          ...(isBuyerMode
+            ? {}
+            : {
+                name: formName,
+                phone: formPhone,
+                whatsapp: formWhatsapp,
+                lga: formLga,
+                location: formLocation,
+                bio: formBio,
+                availabilityStatus: formAvailability,
+              }),
+        });
+      }
+      onSaveCover(selectedCover);
+      onSaveAvatar(selectedAvatar);
+      if (onSaveProfileDetails && !isBuyerMode) {
+        onSaveProfileDetails({
+          name: formName,
+          phone: formPhone,
+          whatsapp: formWhatsapp,
+          lga: formLga,
+          location: formLocation,
+          bio: formBio,
+          availabilityStatus: formAvailability,
+        });
+      }
+      onClose();
+    } finally {
+      setIsSaving(false);
     }
-    onSaveCover(selectedCover);
-    onSaveAvatar(selectedAvatar);
-    if (onSaveProfileDetails && !isBuyerMode) {
-      onSaveProfileDetails({
-        name: formName,
-        phone: formPhone,
-        whatsapp: formWhatsapp,
-        lga: formLga,
-        location: formLocation,
-        bio: formBio,
-        availabilityStatus: formAvailability,
-      });
-    }
-    onClose();
   };
 
   const getFilterStyle = () => {
@@ -387,21 +423,45 @@ export const ProfileCoverEditModal: React.FC<ProfileCoverEditModalProps> = ({
           </div>
 
           {/* Tab Specific Editing Controls */}
+          {uploadToast && (
+            <div className="bg-[#E8F5E9] border border-[#C8E6C9] text-[#0F5132] px-4 py-3 rounded-2xl text-xs font-bold flex items-center justify-between shadow-xs animate-in fade-in">
+              <span className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-[#10B981]" />
+                {uploadToast}
+              </span>
+              <button
+                type="button"
+                onClick={() => setUploadToast(null)}
+                className="text-xs hover:underline text-[#0F5132]"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+
           {activeTab === 'cover' ? (
             <div className="space-y-6">
               {/* Cover Upload Trigger & Presets */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Device Upload Option */}
                 <div
-                  onClick={() => coverInputRef.current?.click()}
-                  className="bg-white p-5 rounded-2xl border-2 border-dashed border-[#0F5132]/30 hover:border-[#0F5132] cursor-pointer transition-all flex flex-col items-center justify-center text-center group hover:bg-[#E8F5E9]/50"
+                  onClick={() => !isUploadingCover && coverInputRef.current?.click()}
+                  className={`bg-white p-5 rounded-2xl border-2 border-dashed border-[#0F5132]/30 hover:border-[#0F5132] cursor-pointer transition-all flex flex-col items-center justify-center text-center group hover:bg-[#E8F5E9]/50 relative ${
+                    isUploadingCover ? 'opacity-70 pointer-events-none' : ''
+                  }`}
                 >
                   <div className="w-12 h-12 rounded-full bg-[#0F5132]/10 text-[#0F5132] flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                    <Upload className="w-6 h-6" />
+                    {isUploadingCover ? (
+                      <Loader2 className="w-6 h-6 animate-spin text-[#0F5132]" />
+                    ) : (
+                      <Upload className="w-6 h-6" />
+                    )}
                   </div>
-                  <span className="font-extrabold text-sm text-[#111827]">Upload Custom Cover Picture</span>
+                  <span className="font-extrabold text-sm text-[#111827]">
+                    {isUploadingCover ? 'Uploading Cover Banner...' : 'Upload New Cover Picture'}
+                  </span>
                   <p className="text-xs text-[#4B5563] mt-1">
-                    Select high-resolution photo from device gallery (PNG, JPG, WEBP)
+                    Select a new photo to replace the current cover banner (PNG, JPG, WEBP)
                   </p>
                   <input
                     type="file"
@@ -415,19 +475,38 @@ export const ProfileCoverEditModal: React.FC<ProfileCoverEditModalProps> = ({
                 {/* Preset Banner Selector info */}
                 <div className="bg-white p-5 rounded-2xl border border-[#E8E2D9] flex flex-col justify-between">
                   <div>
-                    <span className="text-xs font-bold text-[#B45309] uppercase tracking-wider">Quick Presets</span>
+                    <span className="text-xs font-bold text-[#B45309] uppercase tracking-wider">Quick Presets & Reset</span>
                     <h4 className="font-extrabold text-sm text-[#111827] mt-0.5">High-Res Benue Farmland Presets</h4>
                     <p className="text-xs text-[#4B5563] mt-1">
-                      Choose from our professionally curated agricultural header banners for Benue market sellers.
+                      Pick any curated banner to replace your cover, or reset to original default.
                     </p>
                   </div>
-                  <button
-                    onClick={() => setSelectedCover(FARM_COVER_PRESETS[0].url)}
-                    className="text-xs font-bold text-[#0F5132] hover:underline self-start mt-3 flex items-center gap-1"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    <span>Reset to Default Banner</span>
-                  </button>
+                  <div className="flex flex-wrap items-center gap-3 mt-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedCover(FARM_COVER_PRESETS[0].url);
+                        showUploadFeedback('Banner reset to Zaki Biam Yam Harvest preset');
+                      }}
+                      className="text-xs font-bold text-[#0F5132] hover:underline flex items-center gap-1"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>Reset to Default</span>
+                    </button>
+                    {selectedCover && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedCover('');
+                          showUploadFeedback('Cover banner removed');
+                        }}
+                        className="text-xs font-bold text-red-600 hover:underline flex items-center gap-1"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Remove Banner</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -442,7 +521,10 @@ export const ProfileCoverEditModal: React.FC<ProfileCoverEditModalProps> = ({
                     return (
                       <div
                         key={preset.id}
-                        onClick={() => setSelectedCover(preset.url)}
+                        onClick={() => {
+                          setSelectedCover(preset.url);
+                          showUploadFeedback(`Selected ${preset.name} banner!`);
+                        }}
                         className={`relative rounded-xl overflow-hidden cursor-pointer border-2 transition-all group ${
                           isSelected
                             ? 'border-[#0F5132] ring-2 ring-[#0F5132]/30 scale-[1.02]'
@@ -543,12 +625,23 @@ export const ProfileCoverEditModal: React.FC<ProfileCoverEditModalProps> = ({
             <div className="space-y-6">
               {/* Avatar Upload Box */}
               <div className="bg-white p-6 rounded-2xl border border-[#E8E2D9] flex flex-col items-center justify-center text-center space-y-4">
-                <div className="relative group cursor-pointer" onClick={() => avatarInputRef.current?.click()}>
-                  <div className="w-28 h-28 rounded-full bg-[#0F5132] text-white flex items-center justify-center font-extrabold text-4xl ring-4 ring-[#C8E6C9] overflow-hidden shadow-md">
+                <div
+                  className="relative group cursor-pointer"
+                  onClick={() => !isUploadingAvatar && avatarInputRef.current?.click()}
+                  title="Click to choose a new profile picture"
+                >
+                  <div className="w-28 h-28 rounded-full bg-[#0F5132] text-white flex items-center justify-center font-extrabold text-4xl ring-4 ring-[#C8E6C9] overflow-hidden shadow-md relative">
                     {selectedAvatar ? (
                       <img src={selectedAvatar} alt="Avatar Preview" className="w-full h-full object-cover" />
                     ) : (
                       (formName || currentUser?.name || 'F').charAt(0)
+                    )}
+
+                    {isUploadingAvatar && (
+                      <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-white">
+                        <Loader2 className="w-7 h-7 animate-spin text-[#10B981]" />
+                        <span className="text-[10px] font-bold mt-1">Uploading...</span>
+                      </div>
                     )}
                   </div>
                   <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -563,20 +656,46 @@ export const ProfileCoverEditModal: React.FC<ProfileCoverEditModalProps> = ({
                 </div>
 
                 <div className="space-y-1 max-w-sm">
-                  <h4 className="font-extrabold text-base text-[#111827]">Upload Profile Avatar</h4>
+                  <h4 className="font-extrabold text-base text-[#111827]">
+                    {selectedAvatar ? 'Change Profile Picture' : 'Upload Profile Avatar'}
+                  </h4>
                   <p className="text-xs text-[#4B5563]">
-                    Your profile picture is displayed on all produce listings, merchant inquiries, and public farmer profiles.
+                    {selectedAvatar
+                      ? 'Upload a new photo to replace your existing avatar picture across all listings and profiles.'
+                      : 'Your profile picture is displayed on all produce listings, inquiries, and public profiles.'}
                   </p>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => avatarInputRef.current?.click()}
-                  className="inline-flex items-center gap-2 bg-[#0F5132] hover:bg-[#0B3D26] text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-sm transition-colors"
-                >
-                  <Upload className="w-4 h-4" />
-                  <span>Choose Photo from Device</span>
-                </button>
+                <div className="flex flex-wrap items-center justify-center gap-3">
+                  <button
+                    type="button"
+                    disabled={isUploadingAvatar}
+                    onClick={() => avatarInputRef.current?.click()}
+                    className="inline-flex items-center gap-2 bg-[#0F5132] hover:bg-[#0B3D26] text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-sm transition-colors disabled:opacity-50"
+                  >
+                    {isUploadingAvatar ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Upload className="w-4 h-4" />
+                    )}
+                    <span>{selectedAvatar ? 'Upload & Replace Photo' : 'Choose Photo from Device'}</span>
+                  </button>
+
+                  {selectedAvatar && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedAvatar('');
+                        showUploadFeedback('Profile avatar removed. Default initials will be used.');
+                      }}
+                      className="inline-flex items-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold px-4 py-2.5 rounded-xl border border-red-200 transition-colors"
+                      title="Remove current picture and show name initials"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-red-600" />
+                      <span>Remove Photo</span>
+                    </button>
+                  )}
+                </div>
 
                 <input
                   type="file"
@@ -805,11 +924,21 @@ export const ProfileCoverEditModal: React.FC<ProfileCoverEditModalProps> = ({
           <div className="flex items-center gap-3">
             <button
               type="button"
+              disabled={isSaving}
               onClick={handleSaveAll}
-              className="inline-flex items-center gap-2 bg-[#0F5132] hover:bg-[#0B3D26] text-white text-xs font-extrabold px-6 py-2.5 rounded-xl shadow-md active:scale-95 transition-all"
+              className="inline-flex items-center gap-2 bg-[#0F5132] hover:bg-[#0B3D26] disabled:opacity-60 text-white text-xs font-extrabold px-6 py-2.5 rounded-xl shadow-md active:scale-95 transition-all"
             >
-              <Check className="w-4 h-4" />
-              <span>Save & Self-Refresh Profile</span>
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Saving & Applying Changes...</span>
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4" />
+                  <span>Save & Self-Refresh Profile</span>
+                </>
+              )}
             </button>
           </div>
         </div>

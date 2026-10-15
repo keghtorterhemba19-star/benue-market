@@ -33,6 +33,7 @@ import {
   MessageSquare,
   Flag,
   Megaphone,
+  HelpCircle,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useProducts } from '../context/ProductContext';
@@ -46,10 +47,11 @@ import { UserActionConfirmModal, type UserActionType } from '../components/admin
 import { AdminGalleryModal } from '../components/admin/AdminGalleryModal';
 import { AdminReplyModal } from '../components/admin/AdminReplyModal';
 import { AdminAdvertisingTab } from '../components/admin/AdminAdvertisingTab';
+import { AdminSupportTab } from '../components/admin/AdminSupportTab';
 import { AdminAuditLogsTab } from '../components/admin/AdminAuditLogsTab';
 import { Link, useNavigate } from 'react-router-dom';
 
-type AdminTab = 'admins' | 'vendors' | 'buyers' | 'listings' | 'reports' | 'advertising' | 'logs' | 'settings' | 'security';
+type AdminTab = 'admins' | 'vendors' | 'buyers' | 'listings' | 'reports' | 'advertising' | 'support' | 'logs' | 'settings' | 'security';
 
 export const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -58,6 +60,7 @@ export const AdminDashboard: React.FC = () => {
     users,
     activityLogs,
     reports = [],
+    tickets = [],
     resolveReport,
     deleteReport,
     isSuperAdmin,
@@ -103,6 +106,10 @@ export const AdminDashboard: React.FC = () => {
   const activeAdsCount = useMemo(() => {
     return allAds.filter((a) => a.advertisementStatus === 'active').length;
   }, [allAds]);
+
+  const openTicketsCount = useMemo(() => {
+    return tickets.filter((t) => t.status === 'open' || t.status === 'in_progress').length;
+  }, [tickets]);
 
 
   // Modals state
@@ -617,10 +624,28 @@ export const AdminDashboard: React.FC = () => {
             }`}
           >
             <Megaphone className="w-4 h-4 text-[#F59E0B]" />
-            <span>Advertising ({allAds.length})</span>
+            <span>Subscriptions ({allAds.length})</span>
             {activeAdsCount > 0 && (
               <span className="px-1.5 py-0.5 text-[9px] font-bold bg-[#FEAE3A] text-[#111827] rounded-full">
                 {activeAdsCount} active
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('support')}
+            className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 shrink-0 ${
+              activeTab === 'support'
+                ? 'bg-[#0F5132] text-white shadow-sm'
+                : 'text-[#374151] hover:bg-[#E8F5E9] hover:text-[#0F5132]'
+            }`}
+          >
+            <HelpCircle className="w-4 h-4 text-[#FEAE3A]" />
+            <span>Support Desk ({tickets.length})</span>
+            {openTicketsCount > 0 && (
+              <span className="px-1.5 py-0.5 text-[9px] font-bold bg-amber-500 text-[#111827] rounded-full animate-pulse">
+                {openTicketsCount} open
               </span>
             )}
           </button>
@@ -1904,10 +1929,20 @@ export const AdminDashboard: React.FC = () => {
 
 
       {/* ========================================================================= */}
-      {/* TAB: ADVERTISING MANAGEMENT */}
+      {/* TAB: ADVERTISING / SUBSCRIPTIONS MANAGEMENT */}
       {/* ========================================================================= */}
       {activeTab === 'advertising' && (
         <AdminAdvertisingTab
+          isSuperAdmin={isSuperAdmin}
+          showToast={showToast}
+        />
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB: SUPPORT & HELP DESK MANAGEMENT */}
+      {/* ========================================================================= */}
+      {activeTab === 'support' && (
+        <AdminSupportTab
           isSuperAdmin={isSuperAdmin}
           showToast={showToast}
         />
