@@ -50,12 +50,13 @@ const INITIAL_SEED_ADVERTISEMENTS: Advertisement[] = [
     paymentReference: 'BM-AD-PROD1-SEED',
     paymentStatus: 'success',
     advertisementStatus: 'active',
-    startsAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    expiresAt: new Date(Date.now() + 28 * 24 * 60 * 60 * 1000).toISOString(),
-    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    startsAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 - 3 * 60 * 60 * 1000).toISOString(),
+    expiresAt: new Date(Date.now() + 27 * 24 * 60 * 60 * 1000 + 21 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 - 3 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
     vendorName: 'Zaki Biam Yam Farmers Co-op',
     vendorEmail: 'zakibiam.yam@benuemarket.ng',
+    vendorPhone: '+234 803 219 4481',
     productName: 'Export Premium Grade White Yam',
     productPrice: 35000,
     productUnit: 'Per 10 Tubers',
@@ -70,12 +71,13 @@ const INITIAL_SEED_ADVERTISEMENTS: Advertisement[] = [
     paymentReference: 'BM-AD-PROD2-SEED',
     paymentStatus: 'success',
     advertisementStatus: 'active',
-    startsAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    expiresAt: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000).toISOString(),
-    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    startsAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000 - 6 * 60 * 60 * 1000).toISOString(),
+    expiresAt: new Date(Date.now() + 24 * 24 * 60 * 60 * 1000 + 18 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000 - 6 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
     vendorName: 'Gboko Grains & Oilseed Hub',
     vendorEmail: 'gboko.grains@benuemarket.ng',
+    vendorPhone: '+234 812 559 8832',
     productName: 'Cleaned Yellow Soybeans (50kg Bag)',
     productPrice: 42000,
     productUnit: '50kg Bag',
@@ -90,15 +92,58 @@ const INITIAL_SEED_ADVERTISEMENTS: Advertisement[] = [
     paymentReference: 'BM-AD-PROD5-SEED',
     paymentStatus: 'success',
     advertisementStatus: 'active',
-    startsAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    expiresAt: new Date(Date.now() + 29 * 24 * 60 * 60 * 1000).toISOString(),
-    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    startsAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000 - 45 * 60 * 1000).toISOString(),
+    expiresAt: new Date(Date.now() + 28 * 24 * 60 * 60 * 1000 + 23 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000 - 45 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
     vendorName: 'Makurdi Citrus & Vegetable Growers',
     vendorEmail: 'makurdi.citrus@benuemarket.ng',
+    vendorPhone: '+234 809 112 3344',
     productName: 'Sun-Ripened Benue Baskets Tomatoes',
     productPrice: 18000,
     productUnit: 'Raffia Basket',
+  },
+  {
+    id: 'ad-seed-4',
+    vendorId: 'farmer-5',
+    productId: 'prod-6',
+    plan: 'starter',
+    amount: STARTER_PLAN_FEE,
+    currency: 'NGN',
+    paymentReference: 'BM-SUB-EXP-OTUKPO-01',
+    paymentStatus: 'success',
+    advertisementStatus: 'expired',
+    startsAt: new Date(Date.now() - 34 * 24 * 60 * 60 * 1000 - 5 * 60 * 60 * 1000).toISOString(),
+    expiresAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000 - 5 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 34 * 24 * 60 * 60 * 1000 - 6 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+    vendorName: 'Otukpo Organic Honey & Agro Farm',
+    vendorEmail: 'otukpo.honey@benuemarket.ng',
+    vendorPhone: '+234 814 772 0091',
+    productName: 'Pure Raw Benue Bush Honey (5 Litres)',
+    productPrice: 22000,
+    productUnit: '5 Litres Gallon',
+  },
+  {
+    id: 'ad-seed-5',
+    vendorId: 'farmer-6',
+    productId: 'prod-7',
+    plan: 'growth',
+    amount: GROWTH_PLAN_FEE,
+    currency: 'NGN',
+    paymentReference: 'BM-SUB-EXP-KTAL-02',
+    paymentStatus: 'success',
+    advertisementStatus: 'expired',
+    startsAt: new Date(Date.now() - 32 * 24 * 60 * 60 * 1000 - 2 * 60 * 60 * 1000).toISOString(),
+    expiresAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 - 2 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 32 * 24 * 60 * 60 * 1000 - 2 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    vendorName: 'Katsina-Ala River Artisanal Fisheries',
+    vendorEmail: 'katsinaala.fish@benuemarket.ng',
+    vendorPhone: '+234 805 661 2239',
+    productName: 'Smoked Benue River Catfish (Bulk Carton)',
+    productPrice: 48000,
+    productUnit: 'Carton (50 pcs)',
   },
 ];
 
@@ -108,6 +153,17 @@ const getStoredLocalAds = (): Advertisement[] => {
     const data = localStorage.getItem(ADVERTISEMENTS_STORAGE_KEY);
     if (data) {
       ads = JSON.parse(data);
+      // Merge in any initial seed ads that don't exist yet so admin has comprehensive data
+      let hadMissing = false;
+      INITIAL_SEED_ADVERTISEMENTS.forEach((seed) => {
+        if (!ads.some((a) => a.id === seed.id || a.productId === seed.productId)) {
+          ads.push(seed);
+          hadMissing = true;
+        }
+      });
+      if (hadMissing) {
+        saveLocalAds(ads);
+      }
     } else {
       ads = INITIAL_SEED_ADVERTISEMENTS;
       localStorage.setItem(ADVERTISEMENTS_STORAGE_KEY, JSON.stringify(INITIAL_SEED_ADVERTISEMENTS));
@@ -117,8 +173,26 @@ const getStoredLocalAds = (): Advertisement[] => {
     ads = INITIAL_SEED_ADVERTISEMENTS;
   }
 
-  // Auto-purge items in Trash older than 30 days
   const nowMs = Date.now();
+  let hasStatusChange = false;
+
+  // Auto-expire subscriptions whose expiration date & time has elapsed
+  ads = ads.map((ad) => {
+    if (ad.advertisementStatus === 'active' && ad.expiresAt) {
+      const expMs = new Date(ad.expiresAt).getTime();
+      if (expMs <= nowMs) {
+        hasStatusChange = true;
+        return {
+          ...ad,
+          advertisementStatus: 'expired' as AdvertisementStatus,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+    }
+    return ad;
+  });
+
+  // Auto-purge items in Trash older than 30 days
   const maxRetentionMs = 30 * 24 * 60 * 60 * 1000; // 30 days
   const validAds = ads.filter((ad) => {
     if (ad.advertisementStatus === 'trashed' && ad.trashedAt) {
@@ -131,7 +205,7 @@ const getStoredLocalAds = (): Advertisement[] => {
     return true;
   });
 
-  if (validAds.length !== ads.length) {
+  if (validAds.length !== ads.length || hasStatusChange) {
     saveLocalAds(validAds);
   }
 

@@ -90,6 +90,16 @@ export const AdminDashboard: React.FC = () => {
   const [lgaFilter, setLgaFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'suspended'>('all');
   const [allAds, setAllAds] = useState<Advertisement[]>([]);
+  const [advertisingSearchQuery, setAdvertisingSearchQuery] = useState('');
+  const [advertisingStatusFilter, setAdvertisingStatusFilter] = useState<
+    'all' | 'active' | 'expiring_soon' | 'expired' | 'pending' | 'disabled' | 'cancelled' | 'trashed'
+  >('all');
+
+  const handleViewVendorSubscriptions = (vendorNameOrId: string) => {
+    setAdvertisingSearchQuery(vendorNameOrId);
+    setAdvertisingStatusFilter('all');
+    setActiveTab('advertising');
+  };
 
   useEffect(() => {
     const loadAds = async () => {
@@ -479,18 +489,22 @@ export const AdminDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Active Advertisements */}
+        {/* Active Advertisements / Subscriptions */}
         <div
-          onClick={() => setActiveTab('advertising')}
+          onClick={() => {
+            setAdvertisingSearchQuery('');
+            setAdvertisingStatusFilter('active');
+            setActiveTab('advertising');
+          }}
           className="bg-white p-4 rounded-2xl border border-amber-200 hover:border-amber-400 shadow-xs flex flex-col justify-between cursor-pointer transition-all hover:shadow-md bg-gradient-to-r from-amber-50/40 to-white"
         >
           <div className="flex items-center justify-between text-[#6B7280]">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#B45309]">Active Ads</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-[#B45309]">Active Subscriptions</span>
             <Megaphone className="w-4 h-4 text-[#F59E0B]" />
           </div>
           <div className="mt-3">
             <span className="text-2xl font-extrabold text-[#B45309]">{activeAdsCount}</span>
-            <p className="text-[11px] text-[#B45309] font-bold mt-0.5">{allAds.length} Total Campaigns</p>
+            <p className="text-[11px] text-[#B45309] font-bold mt-0.5">{allAds.length} Total Subscriptions</p>
           </div>
         </div>
 
@@ -536,176 +550,214 @@ export const AdminDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Tabs Navigation Bar */}
-      <div className="bg-white rounded-2xl border border-[#E8E2D9] p-2 shadow-xs mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none w-full md:w-auto pb-1 md:pb-0">
-          <button
-            type="button"
-            onClick={() => setActiveTab('admins')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 shrink-0 ${
-              activeTab === 'admins'
-                ? 'bg-[#0F5132] text-white shadow-sm'
-                : 'text-[#374151] hover:bg-[#E8F5E9] hover:text-[#0F5132]'
-            }`}
-          >
-            <ShieldCheck className="w-4 h-4" />
-            <span>Admins ({staffAdmins.length})</span>
-            {isSuperAdmin && (
-              <span className="px-1.5 py-0.5 text-[9px] font-bold bg-[#FEAE3A] text-[#111827] rounded-full">
-                Control
-              </span>
-            )}
-          </button>
+      {/* ========================================================================= */}
+      {/* HORIZONTAL CONTINUOUS TABS NAVIGATION LINE (CONNECTED END-TO-END ARROWS) */}
+      {/* ========================================================================= */}
+      <div className="bg-white rounded-2xl border border-[#E8E2D9] p-2.5 shadow-xs mb-6 overflow-hidden">
+        <div className="overflow-x-auto whitespace-nowrap flex-nowrap scrollbar-thin scrollbar-thumb-[#0F5132]/20 scrollbar-track-transparent py-1 px-1">
+          <div className="flex items-center gap-2 shrink-0 flex-nowrap whitespace-nowrap min-w-max">
+            {/* 1. Admins */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('admins')}
+              className={`px-3.5 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 shrink-0 whitespace-nowrap ${
+                activeTab === 'admins'
+                  ? 'bg-[#0F5132] text-white shadow-sm ring-1 ring-[#0F5132]/30'
+                  : 'text-[#374151] hover:bg-[#E8F5E9] hover:text-[#0F5132] bg-[#FAF8F5] border border-[#E8E2D9]'
+              }`}
+            >
+              <ShieldCheck className={`w-4 h-4 shrink-0 ${activeTab === 'admins' ? 'text-[#FEAE3A]' : 'text-[#0F5132]'}`} />
+              <span>Admins ({staffAdmins.length})</span>
+              {isSuperAdmin && (
+                <span className="px-1.5 py-0.5 text-[9px] font-bold bg-[#FEAE3A] text-[#111827] rounded-full">
+                  Control
+                </span>
+              )}
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('vendors')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 shrink-0 ${
-              activeTab === 'vendors'
-                ? 'bg-[#0F5132] text-white shadow-sm'
-                : 'text-[#374151] hover:bg-[#E8F5E9] hover:text-[#0F5132]'
-            }`}
-          >
-            <Store className="w-4 h-4" />
-            <span>Farmers & Vendors ({vendors.length})</span>
-          </button>
+            <span className="shrink-0 flex items-center px-0.5 text-[#0F5132]/40 select-none" aria-hidden="true">
+              <ArrowRight className="w-3.5 h-3.5 text-[#0F5132]/50 shrink-0 stroke-[2.5]" />
+            </span>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('buyers')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 shrink-0 ${
-              activeTab === 'buyers'
-                ? 'bg-[#0F5132] text-white shadow-sm'
-                : 'text-[#374151] hover:bg-[#E8F5E9] hover:text-[#0F5132]'
-            }`}
-          >
-            <ShoppingBag className="w-4 h-4" />
-            <span>Buyers & Merchants ({buyers.length})</span>
-          </button>
+            {/* 2. Farmers & Vendors */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('vendors')}
+              className={`px-3.5 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 shrink-0 whitespace-nowrap ${
+                activeTab === 'vendors'
+                  ? 'bg-[#0F5132] text-white shadow-sm ring-1 ring-[#0F5132]/30'
+                  : 'text-[#374151] hover:bg-[#E8F5E9] hover:text-[#0F5132] bg-[#FAF8F5] border border-[#E8E2D9]'
+              }`}
+            >
+              <Store className={`w-4 h-4 shrink-0 ${activeTab === 'vendors' ? 'text-[#FEAE3A]' : 'text-[#0F5132]'}`} />
+              <span>Farmers & Vendors ({vendors.length})</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('listings')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 shrink-0 ${
-              activeTab === 'listings'
-                ? 'bg-[#0F5132] text-white shadow-sm'
-                : 'text-[#374151] hover:bg-[#E8F5E9] hover:text-[#0F5132]'
-            }`}
-          >
-            <Package className="w-4 h-4" />
-            <span>Produce Listings ({products.length})</span>
-          </button>
+            <span className="shrink-0 flex items-center px-0.5 text-[#0F5132]/40 select-none" aria-hidden="true">
+              <ArrowRight className="w-3.5 h-3.5 text-[#0F5132]/50 shrink-0 stroke-[2.5]" />
+            </span>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('reports')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 shrink-0 ${
-              activeTab === 'reports'
-                ? 'bg-[#0F5132] text-white shadow-sm'
-                : 'text-[#374151] hover:bg-[#E8F5E9] hover:text-[#0F5132]'
-            }`}
-          >
-            <AlertTriangle className="w-4 h-4 text-[#F59E0B]" />
-            <span>Flagged Reports ({reports.length})</span>
-            {reports.filter(r => r.status === 'pending').length > 0 && (
-              <span className="px-1.5 py-0.5 text-[9px] font-bold bg-red-500 text-white rounded-full animate-pulse">
-                {reports.filter(r => r.status === 'pending').length} pending
-              </span>
-            )}
-          </button>
+            {/* 3. Buyers & Merchants */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('buyers')}
+              className={`px-3.5 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 shrink-0 whitespace-nowrap ${
+                activeTab === 'buyers'
+                  ? 'bg-[#0F5132] text-white shadow-sm ring-1 ring-[#0F5132]/30'
+                  : 'text-[#374151] hover:bg-[#E8F5E9] hover:text-[#0F5132] bg-[#FAF8F5] border border-[#E8E2D9]'
+              }`}
+            >
+              <ShoppingBag className={`w-4 h-4 shrink-0 ${activeTab === 'buyers' ? 'text-[#FEAE3A]' : 'text-[#0F5132]'}`} />
+              <span>Buyers & Merchants ({buyers.length})</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('advertising')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 shrink-0 ${
-              activeTab === 'advertising'
-                ? 'bg-[#0F5132] text-white shadow-sm'
-                : 'text-[#374151] hover:bg-[#E8F5E9] hover:text-[#0F5132]'
-            }`}
-          >
-            <Megaphone className="w-4 h-4 text-[#F59E0B]" />
-            <span>Subscriptions ({allAds.length})</span>
-            {activeAdsCount > 0 && (
-              <span className="px-1.5 py-0.5 text-[9px] font-bold bg-[#FEAE3A] text-[#111827] rounded-full">
-                {activeAdsCount} active
-              </span>
-            )}
-          </button>
+            <span className="shrink-0 flex items-center px-0.5 text-[#0F5132]/40 select-none" aria-hidden="true">
+              <ArrowRight className="w-3.5 h-3.5 text-[#0F5132]/50 shrink-0 stroke-[2.5]" />
+            </span>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('support')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 shrink-0 ${
-              activeTab === 'support'
-                ? 'bg-[#0F5132] text-white shadow-sm'
-                : 'text-[#374151] hover:bg-[#E8F5E9] hover:text-[#0F5132]'
-            }`}
-          >
-            <HelpCircle className="w-4 h-4 text-[#FEAE3A]" />
-            <span>Support Desk ({tickets.length})</span>
-            {openTicketsCount > 0 && (
-              <span className="px-1.5 py-0.5 text-[9px] font-bold bg-amber-500 text-[#111827] rounded-full animate-pulse">
-                {openTicketsCount} open
-              </span>
-            )}
-          </button>
+            {/* 4. Produce Listings */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('listings')}
+              className={`px-3.5 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 shrink-0 whitespace-nowrap ${
+                activeTab === 'listings'
+                  ? 'bg-[#0F5132] text-white shadow-sm ring-1 ring-[#0F5132]/30'
+                  : 'text-[#374151] hover:bg-[#E8F5E9] hover:text-[#0F5132] bg-[#FAF8F5] border border-[#E8E2D9]'
+              }`}
+            >
+              <Package className={`w-4 h-4 shrink-0 ${activeTab === 'listings' ? 'text-[#FEAE3A]' : 'text-[#0F5132]'}`} />
+              <span>Produce Listings ({products.length})</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('logs')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 shrink-0 ${
-              activeTab === 'logs'
-                ? 'bg-[#0F5132] text-white shadow-sm'
-                : 'text-[#374151] hover:bg-[#E8F5E9] hover:text-[#0F5132]'
-            }`}
-          >
-            <Activity className="w-4 h-4" />
-            <span>Audit Logs ({activityLogs.length})</span>
-          </button>
+            <span className="shrink-0 flex items-center px-0.5 text-[#0F5132]/40 select-none" aria-hidden="true">
+              <ArrowRight className="w-3.5 h-3.5 text-[#0F5132]/50 shrink-0 stroke-[2.5]" />
+            </span>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('security')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 shrink-0 ${
-              activeTab === 'security'
-                ? 'bg-[#0F5132] text-white shadow-sm'
-                : 'text-[#374151] hover:bg-[#E8F5E9] hover:text-[#0F5132]'
-            }`}
-          >
-            <Lock className="w-4 h-4 text-amber-500" />
-            <span>Security & Reopening ({pendingReopenRequests.length})</span>
-            {users.filter((u) => u.reopenRequested).length > 0 && (
-              <span className="px-1.5 py-0.5 text-[9px] font-bold bg-amber-500 text-[#111827] rounded-full animate-pulse">
-                {users.filter((u) => u.reopenRequested).length} Pending
-              </span>
-            )}
-          </button>
+            {/* 5. Flagged Reports */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('reports')}
+              className={`px-3.5 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 shrink-0 whitespace-nowrap ${
+                activeTab === 'reports'
+                  ? 'bg-[#0F5132] text-white shadow-sm ring-1 ring-[#0F5132]/30'
+                  : 'text-[#374151] hover:bg-[#E8F5E9] hover:text-[#0F5132] bg-[#FAF8F5] border border-[#E8E2D9]'
+              }`}
+            >
+              <AlertTriangle className="w-4 h-4 text-[#F59E0B] shrink-0" />
+              <span>Flagged Reports ({reports.length})</span>
+              {reports.filter(r => r.status === 'pending').length > 0 && (
+                <span className="px-1.5 py-0.5 text-[9px] font-bold bg-red-500 text-white rounded-full animate-pulse">
+                  {reports.filter(r => r.status === 'pending').length} pending
+                </span>
+              )}
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('settings')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 shrink-0 ${
-              activeTab === 'settings'
-                ? 'bg-[#0F5132] text-white shadow-sm'
-                : 'text-[#374151] hover:bg-[#E8F5E9] hover:text-[#0F5132]'
-            }`}
-          >
-            <Settings className="w-4 h-4" />
-            <span>Platform Settings</span>
-          </button>
+            <span className="shrink-0 flex items-center px-0.5 text-[#0F5132]/40 select-none" aria-hidden="true">
+              <ArrowRight className="w-3.5 h-3.5 text-[#0F5132]/50 shrink-0 stroke-[2.5]" />
+            </span>
+
+            {/* 6. Subscriptions */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('advertising')}
+              className={`px-3.5 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 shrink-0 whitespace-nowrap ${
+                activeTab === 'advertising'
+                  ? 'bg-[#0F5132] text-white shadow-sm ring-1 ring-[#0F5132]/30'
+                  : 'text-[#374151] hover:bg-[#E8F5E9] hover:text-[#0F5132] bg-[#FAF8F5] border border-[#E8E2D9]'
+              }`}
+            >
+              <Megaphone className="w-4 h-4 text-[#F59E0B] shrink-0" />
+              <span>Subscriptions ({allAds.length})</span>
+              {activeAdsCount > 0 && (
+                <span className="px-1.5 py-0.5 text-[9px] font-bold bg-[#FEAE3A] text-[#111827] rounded-full">
+                  {activeAdsCount} active
+                </span>
+              )}
+            </button>
+
+            <span className="shrink-0 flex items-center px-0.5 text-[#0F5132]/40 select-none" aria-hidden="true">
+              <ArrowRight className="w-3.5 h-3.5 text-[#0F5132]/50 shrink-0 stroke-[2.5]" />
+            </span>
+
+            {/* 7. Support Desk */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('support')}
+              className={`px-3.5 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 shrink-0 whitespace-nowrap ${
+                activeTab === 'support'
+                  ? 'bg-[#0F5132] text-white shadow-sm ring-1 ring-[#0F5132]/30'
+                  : 'text-[#374151] hover:bg-[#E8F5E9] hover:text-[#0F5132] bg-[#FAF8F5] border border-[#E8E2D9]'
+              }`}
+            >
+              <HelpCircle className="w-4 h-4 text-[#FEAE3A] shrink-0" />
+              <span>Support Desk ({tickets.length})</span>
+              {openTicketsCount > 0 && (
+                <span className="px-1.5 py-0.5 text-[9px] font-bold bg-amber-500 text-[#111827] rounded-full animate-pulse">
+                  {openTicketsCount} open
+                </span>
+              )}
+            </button>
+
+            <span className="shrink-0 flex items-center px-0.5 text-[#0F5132]/40 select-none" aria-hidden="true">
+              <ArrowRight className="w-3.5 h-3.5 text-[#0F5132]/50 shrink-0 stroke-[2.5]" />
+            </span>
+
+            {/* 8. Audit Logs */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('logs')}
+              className={`px-3.5 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 shrink-0 whitespace-nowrap ${
+                activeTab === 'logs'
+                  ? 'bg-[#0F5132] text-white shadow-sm ring-1 ring-[#0F5132]/30'
+                  : 'text-[#374151] hover:bg-[#E8F5E9] hover:text-[#0F5132] bg-[#FAF8F5] border border-[#E8E2D9]'
+              }`}
+            >
+              <Activity className={`w-4 h-4 shrink-0 ${activeTab === 'logs' ? 'text-[#FEAE3A]' : 'text-[#0F5132]'}`} />
+              <span>Audit Logs ({activityLogs.length})</span>
+            </button>
+
+            <span className="shrink-0 flex items-center px-0.5 text-[#0F5132]/40 select-none" aria-hidden="true">
+              <ArrowRight className="w-3.5 h-3.5 text-[#0F5132]/50 shrink-0 stroke-[2.5]" />
+            </span>
+
+            {/* 9. Security & Reopening */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('security')}
+              className={`px-3.5 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 shrink-0 whitespace-nowrap ${
+                activeTab === 'security'
+                  ? 'bg-[#0F5132] text-white shadow-sm ring-1 ring-[#0F5132]/30'
+                  : 'text-[#374151] hover:bg-[#E8F5E9] hover:text-[#0F5132] bg-[#FAF8F5] border border-[#E8E2D9]'
+              }`}
+            >
+              <Lock className="w-4 h-4 text-amber-500 shrink-0" />
+              <span>Security & Reopening ({pendingReopenRequests.length})</span>
+              {users.filter((u) => u.reopenRequested).length > 0 && (
+                <span className="px-1.5 py-0.5 text-[9px] font-bold bg-amber-500 text-[#111827] rounded-full animate-pulse">
+                  {users.filter((u) => u.reopenRequested).length} Pending
+                </span>
+              )}
+            </button>
+
+            <span className="shrink-0 flex items-center px-0.5 text-[#0F5132]/40 select-none" aria-hidden="true">
+              <ArrowRight className="w-3.5 h-3.5 text-[#0F5132]/50 shrink-0 stroke-[2.5]" />
+            </span>
+
+            {/* 10. Platform Settings */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('settings')}
+              className={`px-3.5 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 shrink-0 whitespace-nowrap ${
+                activeTab === 'settings'
+                  ? 'bg-[#0F5132] text-white shadow-sm ring-1 ring-[#0F5132]/30'
+                  : 'text-[#374151] hover:bg-[#E8F5E9] hover:text-[#0F5132] bg-[#FAF8F5] border border-[#E8E2D9]'
+              }`}
+            >
+              <Settings className={`w-4 h-4 shrink-0 ${activeTab === 'settings' ? 'text-[#FEAE3A]' : 'text-[#0F5132]'}`} />
+              <span>Platform Settings</span>
+            </button>
+          </div>
         </div>
-
-        {/* Global Action CTA for Tab 1 */}
-        {activeTab === 'admins' && isSuperAdmin && (
-          <button
-            type="button"
-            onClick={() => setIsAddAdminOpen(true)}
-            className="w-full md:w-auto inline-flex items-center justify-center gap-2 bg-[#0F5132] hover:bg-[#0B3D26] text-white text-xs font-extrabold px-4 py-2.5 rounded-xl shadow-sm transition-all active:scale-95"
-          >
-            <Plus className="w-4 h-4 text-[#FEAE3A]" />
-            <span>Add New Administrator</span>
-          </button>
-        )}
       </div>
 
       {/* Filter / Search Bar for Tabular Views */}
@@ -758,16 +810,30 @@ export const AdminDashboard: React.FC = () => {
       {/* ========================================================================= */}
       {activeTab === 'admins' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-extrabold text-[#111827] flex items-center gap-2">
-              <span>Platform Administrators</span>
-              <span className="text-xs font-semibold px-2.5 py-0.5 bg-[#E8F5E9] text-[#0F5132] rounded-full">
-                {filteredAdmins.length} total
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-extrabold text-[#111827] flex items-center gap-2">
+                <span>Platform Administrators</span>
+                <span className="text-xs font-semibold px-2.5 py-0.5 bg-[#E8F5E9] text-[#0F5132] rounded-full">
+                  {filteredAdmins.length} total
+                </span>
+              </h2>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-[#6B7280] hidden md:inline">
+                {isSuperAdmin ? '👑 Super Admin has full governance over all staff accounts' : '🔒 Read-only view for staff admins'}
               </span>
-            </h2>
-            <span className="text-xs text-[#6B7280]">
-              {isSuperAdmin ? '👑 Super Admin has full governance over all staff accounts' : '🔒 Read-only view for staff admins'}
-            </span>
+              {isSuperAdmin && (
+                <button
+                  type="button"
+                  onClick={() => setIsAddAdminOpen(true)}
+                  className="inline-flex items-center justify-center gap-2 bg-[#0F5132] hover:bg-[#0B3D26] text-white text-xs font-extrabold px-4 py-2.5 rounded-xl shadow-sm transition-all active:scale-95 shrink-0"
+                >
+                  <Plus className="w-4 h-4 text-[#FEAE3A]" />
+                  <span>Add New Administrator</span>
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -971,6 +1037,9 @@ export const AdminDashboard: React.FC = () => {
                     const vendorActiveAdsCount = allAds.filter(
                       (a) => a.vendorId === vendor.id && a.advertisementStatus === 'active'
                     ).length;
+                    const vendorTotalAdsCount = allAds.filter(
+                      (a) => a.vendorId === vendor.id
+                    ).length;
                     return (
                       <tr key={vendor.id} className="hover:bg-[#FAF8F5]/80 transition-colors">
                         <td className="px-6 py-4">
@@ -980,9 +1049,31 @@ export const AdminDashboard: React.FC = () => {
                             </div>
                             <div>
                               <p className="font-extrabold text-sm text-[#111827]">{vendor.name}</p>
-                              <p className="text-[11px] text-[#6B7280] capitalize">
-                                {vendor.userType || 'Producer'} • {vendorListingsCount} active listings{vendorActiveAdsCount > 0 ? ` (${vendorActiveAdsCount} promoted)` : ''}
-                              </p>
+                              <div className="text-[11px] text-[#6B7280] flex items-center gap-1.5 flex-wrap mt-0.5">
+                                <span className="capitalize">{vendor.userType || 'Producer'}</span>
+                                <span>•</span>
+                                <span>{vendorListingsCount} active listings</span>
+                                {vendorActiveAdsCount > 0 ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleViewVendorSubscriptions(vendor.name)}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-[#0F5132] hover:bg-emerald-200 font-extrabold text-[10px] transition-colors border border-emerald-300"
+                                    title={`View & search active subscriptions for ${vendor.name}`}
+                                  >
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                    <span>{vendorActiveAdsCount} active sub</span>
+                                  </button>
+                                ) : vendorTotalAdsCount > 0 ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleViewVendorSubscriptions(vendor.name)}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 font-bold text-[10px] transition-colors border border-gray-300"
+                                    title={`View past subscription history for ${vendor.name}`}
+                                  >
+                                    <span>{vendorTotalAdsCount} past sub</span>
+                                  </button>
+                                ) : null}
+                              </div>
                             </div>
                           </div>
                         </td>
@@ -1027,7 +1118,17 @@ export const AdminDashboard: React.FC = () => {
                         </td>
 
                         <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex items-center justify-end gap-1.5">
+                            {/* Shortcut to view vendor subscriptions */}
+                            <button
+                              type="button"
+                              onClick={() => handleViewVendorSubscriptions(vendor.name)}
+                              className="p-2 rounded-xl text-xs font-bold bg-[#E8F5E9] text-[#0F5132] hover:bg-[#C8E6C9] transition-colors border border-[#C8E6C9]"
+                              title={`Search all subscriptions for ${vendor.name}`}
+                            >
+                              <Megaphone className="w-4 h-4 text-[#0F5132]" />
+                            </button>
+
                             {isSuperAdmin ? (
                               <>
                                 <button
@@ -1935,6 +2036,8 @@ export const AdminDashboard: React.FC = () => {
         <AdminAdvertisingTab
           isSuperAdmin={isSuperAdmin}
           showToast={showToast}
+          initialSearchQuery={advertisingSearchQuery}
+          initialStatusFilter={advertisingStatusFilter}
         />
       )}
 

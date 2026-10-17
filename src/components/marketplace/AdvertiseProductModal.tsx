@@ -41,6 +41,7 @@ interface AdvertiseProductModalProps {
   vendorEmail: string;
   vendorId: string;
   onSuccess?: (ad: Advertisement) => void;
+  initialMode?: 'renew' | 'upgrade' | 'subscribe';
 }
 
 export const AdvertiseProductModal: React.FC<AdvertiseProductModalProps> = ({
@@ -50,9 +51,11 @@ export const AdvertiseProductModal: React.FC<AdvertiseProductModalProps> = ({
   vendorEmail,
   vendorId,
   onSuccess,
+  initialMode = 'subscribe',
 }) => {
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlanId>('starter');
   const [existingAd, setExistingAd] = useState<Advertisement | null>(null);
+  const [isRenewUpgradeOpen, setIsRenewUpgradeOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -75,9 +78,10 @@ export const AdvertiseProductModal: React.FC<AdvertiseProductModalProps> = ({
       setUnverifiedNotice(null);
       setCurrentAd(null);
       setShowTransferMode(false);
+      setIsRenewUpgradeOpen(initialMode === 'renew' || initialMode === 'upgrade');
       checkExistingAdvertisement();
     }
-  }, [isOpen, product?.id]);
+  }, [isOpen, product?.id, initialMode]);
 
   const checkExistingAdvertisement = async () => {
     if (!product) return;
@@ -85,7 +89,15 @@ export const AdvertiseProductModal: React.FC<AdvertiseProductModalProps> = ({
     try {
       const ad = await getProductAdvertisement(product.id);
       setExistingAd(ad);
-      if (ad?.plan) {
+      if (initialMode === 'upgrade') {
+        setSelectedPlan('growth');
+        setIsRenewUpgradeOpen(true);
+      } else if (initialMode === 'renew') {
+        setIsRenewUpgradeOpen(true);
+        if (ad?.plan) {
+          setSelectedPlan(ad.plan);
+        }
+      } else if (ad?.plan) {
         setSelectedPlan(ad.plan);
       }
       if (ad?.paymentReference) {
@@ -351,32 +363,85 @@ export const AdvertiseProductModal: React.FC<AdvertiseProductModalProps> = ({
 
               {/* Already Active Banner */}
               {isAlreadyActive && (
-                <div className="bg-[#E8F5E9] border border-[#C8E6C9] rounded-2xl p-4 flex items-start gap-3">
-                  <Sparkles className="w-5 h-5 text-[#0F5132] shrink-0 mt-0.5" />
-                  <div className="text-xs space-y-1">
-                    <p className="font-extrabold text-[#0F5132]">This product has an active subscription!</p>
-                    <p className="text-[#4B5563]">
-                      Plan: <span className="font-bold text-[#0F5132]">{existingAd?.plan === 'growth' ? 'Growth Plan (₦5,000)' : 'Starter Plan (₦2,000)'}</span>
-                    </p>
-                    <p className="text-[#4B5563]">
-                      Active until {existingAd?.expiresAt ? new Date(existingAd.expiresAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' }) : 'N/A'}
-                    </p>
-                    <p className="text-[#4B5563]">
-                      Ref: <span className="font-bold font-mono">{existingAd?.paymentReference || 'N/A'}</span>
-                    </p>
+                <div className="bg-[#E8F5E9] border border-[#C8E6C9] rounded-2xl p-4 space-y-3">
+                  <div className="flex items-start gap-3">
+                    <Sparkles className="w-5 h-5 text-[#0F5132] shrink-0 mt-0.5" />
+                    <div className="text-xs space-y-1 flex-1">
+                      <div className="flex items-center justify-between">
+                        <p className="font-extrabold text-[#0F5132] text-sm">Active Product Subscription</p>
+                        <span className="inline-flex items-center gap-1.5 text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-100 text-[#0F5132] border border-emerald-300">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          <span>Active Plan</span>
+                        </span>
+                      </div>
+                      <p className="text-[#4B5563]">
+                        Plan: <strong className="text-[#0F5132] font-black">{existingAd?.plan === 'growth' ? 'Growth VIP Plan (₦5,000 / month)' : 'Starter Plan (₦2,000 / month)'}</strong>
+                      </p>
+                      <p className="text-[#4B5563]">
+                        Expired Day: <strong className="text-[#111827]">{existingAd?.expiresAt ? new Date(existingAd.expiresAt).toLocaleDateString('en-NG', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A'}</strong>
+                        {existingAd?.expiresAt && (
+                          <span className="ml-1.5 text-emerald-800 font-bold">
+                            ({Math.max(0, Math.ceil((new Date(existingAd.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))} days left)
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-[11px] text-[#6B7280]">
+                        Payment Ref: <span className="font-mono font-bold text-[#111827]">{existingAd?.paymentReference || 'N/A'}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Renew / Upgrade Action Pills */}
+                  <div className="pt-2 border-t border-emerald-200/70 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedPlan(existingAd?.plan === 'growth' ? 'growth' : 'starter');
+                        setIsRenewUpgradeOpen(true);
+                      }}
+                      className={`flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-black px-3 py-2 rounded-xl border shadow-xs transition-colors ${
+                        isRenewUpgradeOpen && selectedPlan === (existingAd?.plan === 'growth' ? 'growth' : 'starter')
+                          ? 'bg-[#0F5132] text-white border-[#0F5132]'
+                          : 'bg-white hover:bg-emerald-50 text-[#0F5132] border-[#0F5132]/30'
+                      }`}
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>Renew Subscription</span>
+                    </button>
+                    {existingAd?.plan !== 'growth' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedPlan('growth');
+                          setIsRenewUpgradeOpen(true);
+                        }}
+                        className={`flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-black px-3 py-2 rounded-xl shadow-xs transition-colors ${
+                          isRenewUpgradeOpen && selectedPlan === 'growth'
+                            ? 'bg-[#B45309] text-white ring-2 ring-[#B45309]/30'
+                            : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white'
+                        }`}
+                      >
+                        <Crown className="w-3.5 h-3.5 text-white" />
+                        <span>Upgrade to Growth VIP (₦5k)</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
 
               {/* Subscription Plans Selection Interface */}
-              {!isAlreadyActive && (
+              {(!isAlreadyActive || isRenewUpgradeOpen) && (
                 <div className="space-y-4">
                   
                   {/* Subscription Plan Cards Section */}
                   <div>
                     <div className="flex items-center justify-between mb-2.5">
                       <label className="text-xs font-extrabold uppercase tracking-wider text-[#111827]">
-                        Choose Monthly Subscription Plan
+                        {isAlreadyActive
+                          ? selectedPlan === 'growth' && existingAd?.plan !== 'growth'
+                            ? 'Upgrade to Growth VIP Plan'
+                            : 'Renew Subscription Plan'
+                          : 'Choose Monthly Subscription Plan'}
                       </label>
                       <span className="text-[11px] text-gray-500 font-medium">30 Days Cycle</span>
                     </div>
@@ -604,6 +669,18 @@ export const AdvertiseProductModal: React.FC<AdvertiseProductModalProps> = ({
                           <RefreshCw className="w-5 h-5 text-[#FEAE3A]" />
                           <span>Retry Subscription — {formatNaira(currentPlanFee)} ({currentPlanConfig.name})</span>
                         </>
+                      ) : isAlreadyActive ? (
+                        selectedPlan === 'growth' && existingAd?.plan !== 'growth' ? (
+                          <>
+                            <Crown className="w-5 h-5 text-[#FEAE3A]" />
+                            <span>Upgrade to Growth VIP — {formatNaira(currentPlanFee)} (30 Days)</span>
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="w-5 h-5 text-[#FEAE3A]" />
+                            <span>Renew Subscription — {formatNaira(currentPlanFee)} (30 Days)</span>
+                          </>
+                        )
                       ) : (
                         <>
                           <CreditCard className="w-5 h-5 text-[#FEAE3A]" />
