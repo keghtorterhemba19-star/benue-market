@@ -1,5 +1,4 @@
 // ── Benue Market Support & Help Desk Types ──
-import type { UserRole } from './index';
 
 export type TicketPriority = 'low' | 'medium' | 'high' | 'urgent';
 

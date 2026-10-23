@@ -15,7 +15,6 @@ import {
   Home as HomeIcon,
   Users,
   Info,
-  PhoneCall,
   Search,
   ChevronRight,
   Leaf,

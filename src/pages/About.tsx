@@ -3,26 +3,16 @@ import { Link } from 'react-router-dom';
 import { 
   ShieldCheck, 
   MapPin, 
-  Phone, 
   MessageSquare, 
   Sparkles, 
   Package, 
-  ArrowRight, 
   CheckCircle2, 
-  TrendingUp, 
   Scale, 
   Store, 
-  Layers, 
-  Users, 
-  Award, 
   HelpCircle,
-  Truck,
-  HeartHandshake,
   Check,
   ChevronDown,
   Building,
-  Target,
-  Clock,
   Compass
 } from 'lucide-react';
 import { BENUE_LGAS } from '../constants/benue';

@@ -7,8 +7,6 @@ import {
   MapPin,
   Clock,
   MessageSquare,
-  HelpCircle,
-  ShieldCheck,
   Sparkles,
   ChevronDown,
   Copy,
@@ -17,10 +15,8 @@ import {
   Store,
   ShoppingBag,
   Send,
-  AlertTriangle,
   ArrowRight,
   Headphones,
-  CheckCircle2,
 } from 'lucide-react';
 import type { TicketTopic } from '../../types';
 

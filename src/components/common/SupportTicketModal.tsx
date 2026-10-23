@@ -12,7 +12,6 @@ import {
   Phone,
   Mail,
   Loader2,
-  ExternalLink,
   Info,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';

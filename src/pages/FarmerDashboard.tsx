@@ -21,7 +21,6 @@ import {
   RefreshCw,
   ArrowUpRight,
   Package,
-  Check,
   AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -29,7 +28,6 @@ import { useProducts } from '../context/ProductContext';
 import {
   formatNaira,
   formatSubscriptionDate,
-  formatSubscriptionDateTime,
   getSubscriptionTimeDetails,
 } from '../utils/formatters';
 import { DeleteConfirmModal } from '../components/common/DeleteConfirmModal';
@@ -804,61 +802,7 @@ export const FarmerDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* ── MODALS CONTAINER ── */}
-      {productToAdvertise && (
-        <AdvertiseProductModal
-          isOpen={Boolean(productToAdvertise)}
-          onClose={() => setProductToAdvertise(null)}
-          product={productToAdvertise}
-          vendorId={currentUser?.id || 'farmer-1'}
-          vendorEmail={currentUser?.email || 'farmer@benuemarket.ng'}
-          onSuccess={() => {
-            loadVendorAds();
-            setProductToAdvertise(null);
-            setToastMessage('✅ Produce subscription plan activated successfully!');
-            setTimeout(() => setToastMessage(null), 4000);
-          }}
-        />
-      )}
-
-      {productToEdit && (
-        <EditProductModal
-          isOpen={Boolean(productToEdit)}
-          onClose={() => setProductToEdit(null)}
-          product={productToEdit}
-          onSuccess={() => {
-            setProductToEdit(null);
-            setToastMessage('✅ Produce listing updated successfully!');
-            setTimeout(() => setToastMessage(null), 4000);
-          }}
-        />
-      )}
-
-      {productToDelete && (
-        <DeleteConfirmModal
-          isOpen={Boolean(productToDelete)}
-          onClose={() => setProductToDelete(null)}
-          onConfirm={() => {
-            handleConfirmDelete(productToDelete.id);
-            setProductToDelete(null);
-          }}
-          title="Delete Produce Listing"
-          message={`Are you sure you want to delete "${productToDelete.name}" from your active marketplace catalog? This action cannot be undone.`}
-        />
-      )}
-
-      {currentUser && (
-        <ProfileCoverEditModal
-          isOpen={isCoverModalOpen}
-          onClose={() => setIsCoverModalOpen(false)}
-          currentUser={currentUser}
-          onSaveProfileImage={updateProfileImage}
-          onSaveCoverImage={updateCoverImage}
-          onSaveProfileDetails={updateUserProfile}
-          onSellerInfoUpdated={updateSellerInfoInProducts}
-        />
-      )}
-
+      {/* Support Ticket Modal */}
       <SupportTicketModal
         isOpen={isSupportModalOpen}
         onClose={() => setIsSupportModalOpen(false)}

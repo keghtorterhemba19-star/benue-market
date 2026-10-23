@@ -1661,11 +1661,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     senderRole?: 'super_admin' | 'admin' | 'farmer' | 'buyer' | 'user'
   ) => {
     const now = new Date().toISOString();
+    const defaultSenderRole: 'super_admin' | 'admin' | 'farmer' | 'buyer' | 'user' = isSuperAdmin
+      ? 'super_admin'
+      : isAdmin
+      ? 'admin'
+      : currentUser?.role === 'seller'
+      ? 'farmer'
+      : currentUser?.role === 'buyer'
+      ? 'buyer'
+      : 'user';
+
     const newReply: TicketReply = {
       id: `rep-tk-${Date.now()}`,
       senderName: currentUser?.name || 'Benue Market Support',
       senderEmail: currentUser?.email || SUPER_ADMIN_EMAIL,
-      senderRole: senderRole || (isSuperAdmin ? 'super_admin' : (isAdmin ? 'admin' : (currentUser?.role || 'user'))),
+      senderRole: senderRole || defaultSenderRole,
       message,
       createdAt: now,
     };

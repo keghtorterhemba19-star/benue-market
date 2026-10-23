@@ -12,8 +12,6 @@ import {
   Check,
   Zap,
   Crown,
-  ShieldCheck,
-  TrendingUp,
 } from 'lucide-react';
 import type { Product } from '../../types';
 import type { Advertisement, SubscriptionPlanId } from '../../types/advertisement';

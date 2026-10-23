@@ -2,31 +2,23 @@ import React, { useState, useMemo } from 'react';
 import {
   HelpCircle,
   Search,
-  Filter,
   CheckCircle2,
   Clock,
-  AlertTriangle,
   MessageSquare,
   Send,
   Phone,
   Mail,
-  ExternalLink,
   Trash2,
   Check,
   Copy,
-  ChevronDown,
-  User,
   ShieldCheck,
   Store,
   ShoppingBag,
-  Sparkles,
-  RefreshCw,
   X,
-  Eye,
   MessageCircle,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import type { SupportTicket, TicketStatus, TicketPriority, TicketTopic } from '../../types';
+import type { SupportTicket, TicketStatus, TicketPriority } from '../../types';
 import {
   TICKET_TOPIC_CONFIG,
   TICKET_PRIORITY_CONFIG,

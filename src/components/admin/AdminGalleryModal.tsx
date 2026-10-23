@@ -14,7 +14,6 @@ import {
   Link as LinkIcon,
   Download,
   Star,
-  Loader2,
 } from 'lucide-react';
 import type { User } from '../../types';
 import { compressImageFile } from '../../utils/imageCompressor';
